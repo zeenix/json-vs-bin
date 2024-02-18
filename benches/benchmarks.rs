@@ -1,16 +1,23 @@
-use std::{collections::HashMap, mem::swap, sync::mpsc::channel};
+use std::{collections::HashMap, mem::swap, sync::mpsc::channel, thread::available_parallelism};
 
 use serde::{Deserialize, Serialize};
 
 use criterion::{black_box, criterion_group, criterion_main, Criterion};
 
+use serde_json::to_string;
 use zvariant::{serialized::Context, to_bytes_for_signature, Type, LE};
 
-criterion_group!(benches, dbus_enc_context_switching);
+criterion_group!(
+    benches,
+    dbus_enc_high_context_switching,
+    dbus_enc_low_context_switching,
+    json_enc_high_context_switching,
+    json_enc_low_context_switching,
+);
 criterion_main!(benches);
 
-fn dbus_enc_context_switching(c: &mut Criterion) {
-    const NUM_THREADS: usize = 8;
+fn dbus_enc_high_context_switching(c: &mut Criterion) {
+    const DEFAULT_PARALLELISM: usize = 8;
 
     let data = Data::new();
     let signature = Data::signature();
@@ -19,7 +26,10 @@ fn dbus_enc_context_switching(c: &mut Criterion) {
     // Create 8 threads and channels, with main thread receiving back what it sends to the first
     // channel, from the last channel in the chain.
     let (first_tx, mut last_rx) = channel();
-    for _ in 0..NUM_THREADS {
+    for _ in 0..available_parallelism()
+        .map(Into::into)
+        .unwrap_or(DEFAULT_PARALLELISM)
+    {
         let (tx, mut rx) = channel();
         swap(&mut last_rx, &mut rx);
         std::thread::spawn(move || loop {
@@ -31,7 +41,7 @@ fn dbus_enc_context_switching(c: &mut Criterion) {
         });
     }
 
-    c.bench_function("dbus_enc_context_switching", |b| {
+    c.bench_function("dbus_enc_high_context_switching", |b| {
         b.iter(|| {
             let encoded =
                 to_bytes_for_signature(black_box(ctxt), black_box(&signature), black_box(&data))
@@ -42,6 +52,97 @@ fn dbus_enc_context_switching(c: &mut Criterion) {
             let (data, _): (Data, _) = encoded
                 .deserialize_for_signature(black_box(&signature))
                 .unwrap();
+            black_box(data);
+        })
+    });
+}
+
+fn dbus_enc_low_context_switching(c: &mut Criterion) {
+    let data = Data::new();
+    let signature = Data::signature();
+    let ctxt = Context::new_dbus(LE, 0);
+
+    let (tx1, rx1) = channel();
+    let (tx2, rx2) = channel();
+    std::thread::spawn(move || loop {
+        let msg = match rx1.recv() {
+            Ok(msg) => msg,
+            Err(_) => break,
+        };
+        tx2.send(msg).unwrap();
+    });
+
+    c.bench_function("dbus_enc_low_context_switching", |b| {
+        b.iter(|| {
+            let encoded =
+                to_bytes_for_signature(black_box(ctxt), black_box(&signature), black_box(&data))
+                    .unwrap();
+            tx1.send(encoded).unwrap();
+
+            let encoded = rx2.recv().unwrap();
+            let (data, _): (Data, _) = encoded
+                .deserialize_for_signature(black_box(&signature))
+                .unwrap();
+            black_box(data);
+        })
+    });
+}
+
+fn json_enc_high_context_switching(c: &mut Criterion) {
+    const DEFAULT_PARALLELISM: usize = 8;
+
+    let data = Data::new();
+
+    // Create 8 threads and channels, with main thread receiving back what it sends to the first
+    // channel, from the last channel in the chain.
+    let (first_tx, mut last_rx) = channel();
+    for _ in 0..available_parallelism()
+        .map(Into::into)
+        .unwrap_or(DEFAULT_PARALLELISM)
+    {
+        let (tx, mut rx) = channel();
+        swap(&mut last_rx, &mut rx);
+        std::thread::spawn(move || loop {
+            let msg = match rx.recv() {
+                Ok(msg) => msg,
+                Err(_) => break,
+            };
+            tx.send(msg).unwrap();
+        });
+    }
+
+    c.bench_function("json_enc_high_context_switching", |b| {
+        b.iter(|| {
+            let encoded = to_string(black_box(&data)).unwrap();
+            first_tx.send(encoded).unwrap();
+
+            let encoded = last_rx.recv().unwrap();
+            let data: Data = serde_json::from_slice(encoded.as_bytes()).unwrap();
+            black_box(data);
+        })
+    });
+}
+
+fn json_enc_low_context_switching(c: &mut Criterion) {
+    let data = Data::new();
+
+    let (tx1, rx1) = channel();
+    let (tx2, rx2) = channel();
+    std::thread::spawn(move || loop {
+        let msg = match rx1.recv() {
+            Ok(msg) => msg,
+            Err(_) => break,
+        };
+        tx2.send(msg).unwrap();
+    });
+
+    c.bench_function("json_enc_no_context_switching", |b| {
+        b.iter(|| {
+            let encoded = to_string(black_box(&data)).unwrap();
+            tx1.send(encoded).unwrap();
+
+            let encoded = rx2.recv().unwrap();
+            let data: Data = serde_json::from_slice(encoded.as_bytes()).unwrap();
             black_box(data);
         })
     });
