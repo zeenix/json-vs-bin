@@ -340,6 +340,7 @@ name = "json-vs-bin"
 version = "0.1.0"
 dependencies = [
  "bson",
+ "ciborium",
  "criterion",
  "serde",
  "serde_json",

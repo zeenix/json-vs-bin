@@ -7,7 +7,7 @@ use criterion::{black_box, criterion_group, criterion_main, Criterion};
 use serde_json::to_string;
 use zvariant::{serialized::Context, to_bytes_for_signature, Type, LE};
 
-criterion_group!(benches, dbus_enc, json_enc, bson_enc,);
+criterion_group!(benches, dbus_enc, json_enc, bson_enc, cbor_enc);
 criterion_main!(benches);
 
 fn dbus_enc(c: &mut Criterion) {
@@ -144,32 +144,75 @@ fn bson_enc(c: &mut Criterion) {
     });
 }
 
+fn cbor_enc(c: &mut Criterion) {
+    let data = Data::new();
+
+    c.bench_function("cbor_enc_no_context_switching", |b| {
+        b.iter(|| {
+            let mut encoded = Vec::new();
+            ciborium::into_writer(black_box(&data), black_box(&mut encoded)).unwrap();
+            let data: Data = ciborium::from_reader(black_box(&encoded[..])).unwrap();
+            black_box(data);
+        })
+    });
+
+    // Create 8 threads and channels, with main thread receiving back what it sends to the first
+    // channel, from the last channel in the chain.
+    let (first_tx, mut last_rx) = channel();
+    for _ in 0..available_parallelism()
+        .map(Into::into)
+        .unwrap_or(DEFAULT_PARALLELISM)
+    {
+        let (tx, mut rx) = channel();
+        swap(&mut last_rx, &mut rx);
+        std::thread::spawn(move || loop {
+            let msg = match rx.recv() {
+                Ok(msg) => msg,
+                Err(_) => break,
+            };
+            tx.send(msg).unwrap();
+        });
+    }
+
+    c.bench_function("cbor_enc_high_context_switching", |b| {
+        b.iter(|| {
+            let mut encoded = Vec::new();
+            ciborium::into_writer(black_box(&data), black_box(&mut encoded)).unwrap();
+            first_tx.send(encoded).unwrap();
+
+            let encoded = last_rx.recv().unwrap();
+            let data: Data = ciborium::from_reader(black_box(&encoded[..])).unwrap();
+            black_box(data);
+        })
+    });
+}
+
 #[derive(Deserialize, Serialize, Type, PartialEq, Debug, Clone)]
-struct Data<'f> {
+struct Data {
     int1: u64,
     int2: u8,
     bool1: bool,
-    string1: &'f str,
+    string1: String,
     int3: u8,
-    string2: &'f str,
+    string2: String,
     map1: std::collections::HashMap<String, u32>,
     int4: u8,
-    string3: &'f str,
+    string3: String,
     int5: u32,
     map2: std::collections::HashMap<String, u32>,
 }
-impl Data<'static> {
+impl Data {
     pub fn new() -> Self {
         let mut data = Self {
             int1: 42,
             int2: 42,
             bool1: true,
-            string1: "Hello, world!",
+            string1: "Hello, world!".to_string(),
             int3: 42,
-            string2: "Loooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooong string!",
+            string2: "Loooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooong string!".to_string(),
             map1: HashMap::new(),
             int4: 42,
-            string3: "Loooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooong string!",
+            string3: "Loooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooong string!".to_string(),
             int5: 42,
             map2: HashMap::new(),
         };
