@@ -1,3 +1,8 @@
+/// This benchmark is to compare the performance of JSON and a few binary formats.
+///
+/// TODO:
+/// * Much bigger and more complex `Data` struct.
+/// * Also, benchmark with tokio tasks instead of threads.
 use std::{collections::HashMap, mem::swap, sync::mpsc::channel, thread::available_parallelism};
 
 use serde::{Deserialize, Serialize};
