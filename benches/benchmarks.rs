@@ -13,6 +13,8 @@ criterion_group!(
     dbus_enc_low_context_switching,
     json_enc_high_context_switching,
     json_enc_low_context_switching,
+    bson_enc_high_context_switching,
+    bson_enc_low_context_switching,
 );
 criterion_main!(benches);
 
@@ -143,6 +145,66 @@ fn json_enc_low_context_switching(c: &mut Criterion) {
 
             let encoded = rx2.recv().unwrap();
             let data: Data = serde_json::from_slice(encoded.as_bytes()).unwrap();
+            black_box(data);
+        })
+    });
+}
+
+fn bson_enc_high_context_switching(c: &mut Criterion) {
+    const DEFAULT_PARALLELISM: usize = 8;
+
+    let data = Data::new();
+
+    // Create 8 threads and channels, with main thread receiving back what it sends to the first
+    // channel, from the last channel in the chain.
+    let (first_tx, mut last_rx) = channel();
+    for _ in 0..available_parallelism()
+        .map(Into::into)
+        .unwrap_or(DEFAULT_PARALLELISM)
+    {
+        let (tx, mut rx) = channel();
+        swap(&mut last_rx, &mut rx);
+        std::thread::spawn(move || loop {
+            let msg = match rx.recv() {
+                Ok(msg) => msg,
+                Err(_) => break,
+            };
+            tx.send(msg).unwrap();
+        });
+    }
+
+    c.bench_function("bson_enc_high_context_switching", |b| {
+        b.iter(|| {
+            let encoded = bson::to_vec(black_box(&data)).unwrap();
+            first_tx.send(encoded).unwrap();
+
+            let encoded = last_rx.recv().unwrap();
+            let data: Data = bson::from_slice(&encoded).unwrap();
+            black_box(data);
+        })
+    });
+}
+
+fn bson_enc_low_context_switching(c: &mut Criterion) {
+    let data = Data::new();
+
+    let (tx1, rx1) = channel();
+    let (tx2, rx2) = channel();
+    std::thread::spawn(move || loop {
+        let msg = match rx1.recv() {
+            Ok(msg) => msg,
+            Err(_) => break,
+        };
+        tx2.send(msg).unwrap();
+    });
+
+    c.bench_function("bson_enc_no_context_switching", |b| {
+        b.iter(|| {
+            let encoded = bson::to_vec(black_box(&data)).unwrap();
+            tx1.send(encoded).unwrap();
+
+            let encoded = rx2.recv().unwrap();
+            let data: Data = bson::from_slice(&encoded).unwrap();
             black_box(data);
         })
     });
