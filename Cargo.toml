@@ -12,8 +12,6 @@ harness = false
 [dependencies]
 bson = "2.9.0"
 ciborium = "0.2.2"
-
-[dev-dependencies]
 serde = "1"
 serde_json = "1"
 zvariant = "4"
