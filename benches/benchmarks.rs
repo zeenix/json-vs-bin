@@ -232,6 +232,7 @@ fn bench_it<D, EncFn, DecFn>(
     DecFn: Fn(&[u8]) -> D,
 {
     let mut group = c.benchmark_group("no_context_switching");
+    group.measurement_time(std::time::Duration::from_secs(20));
     group.bench_function(bench_name, |b| {
         b.iter(|| {
             let encoded = enc_fn(black_box(&data));
@@ -244,6 +245,7 @@ fn bench_it<D, EncFn, DecFn>(
     let (first_tx, last_rx) = setup_channels_and_threads();
 
     let mut group = c.benchmark_group("high_context_switching");
+    group.measurement_time(std::time::Duration::from_secs(20));
     group.bench_function(bench_name, |b| {
         b.iter(|| {
             let encoded = enc_fn(black_box(&data));
