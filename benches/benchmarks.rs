@@ -6,75 +6,41 @@ use std::{
     collections::HashMap, iter, mem::swap, sync::mpsc::channel, thread::available_parallelism,
 };
 
-use serde::{Deserialize, Serialize};
+use serde::{de::DeserializeOwned, Deserialize, Serialize};
 
 use criterion::{black_box, criterion_group, criterion_main, Criterion};
 
-use serde_json::{to_string, to_vec};
+use serde_json::to_string;
 use zvariant::{serialized::Context, to_bytes_for_signature, Type, LE};
 
 criterion_group!(benches, dbus, json, bson, cbor);
 criterion_main!(benches);
 
 fn dbus(c: &mut Criterion) {
-    let data = iter::repeat_with(BigData::new).take(10).collect::<Vec<_>>();
     let signature = <Vec<BigData>>::signature();
     let ctxt = Context::new_dbus(LE, 0);
-
-    c.bench_function("dbus_big_no_context_switching", |b| {
-        b.iter(|| {
-            let encoded =
-                to_bytes_for_signature(black_box(ctxt), black_box(&signature), black_box(&data))
-                    .unwrap();
-
-            let (data, _): (Vec<BigData>, _) = encoded
-                .deserialize_for_signature(black_box(&signature))
-                .unwrap();
-            black_box(data);
-        })
-    });
-
-    let (first_tx, last_rx) = setup_channels_and_threads();
-
-    c.bench_function("dbus_big_high_context_switching", |b| {
-        b.iter(|| {
-            let encoded =
-                to_bytes_for_signature(black_box(ctxt), black_box(&signature), black_box(&data))
-                    .unwrap();
-            first_tx.send(encoded.to_vec()).unwrap();
-
-            let encoded = zvariant::serialized::Data::new(last_rx.recv().unwrap(), ctxt);
-            let (data, _): (Vec<BigData>, _) = encoded
-                .deserialize_for_signature(black_box(&signature))
-                .unwrap();
-            black_box(data);
-        })
-    });
+    let data = iter::repeat_with(BigData::new).take(10).collect::<Vec<_>>();
+    let enc_fn = |data: &Vec<BigData>| {
+        to_bytes_for_signature(black_box(ctxt), black_box(&signature), black_box(data))
+            .unwrap()
+            .to_vec()
+    };
+    let dec_fn = |data: &[u8]| {
+        let encoded = zvariant::serialized::Data::new(data, ctxt);
+        let (data, _): (Vec<BigData>, _) = encoded
+            .deserialize_for_signature(black_box(&signature))
+            .unwrap();
+        data
+    };
+    bench_it(c, data, enc_fn, dec_fn, "dbus_big");
 }
 
 fn json(c: &mut Criterion) {
     let data = iter::repeat_with(BigData::new).take(10).collect::<Vec<_>>();
 
-    c.bench_function("json_big_no_context_switching", |b| {
-        b.iter(|| {
-            let encoded = to_string(black_box(&data)).unwrap();
-            let data: Vec<BigData> = serde_json::from_slice(encoded.as_bytes()).unwrap();
-            black_box(data);
-        })
-    });
-
-    let (first_tx, last_rx) = setup_channels_and_threads();
-
-    c.bench_function("json_big_high_context_switching", |b| {
-        b.iter(|| {
-            let encoded = to_vec(black_box(&data)).unwrap();
-            first_tx.send(encoded).unwrap();
-
-            let encoded = last_rx.recv().unwrap();
-            let data: Vec<BigData> = serde_json::from_slice(&encoded).unwrap();
-            black_box(data);
-        })
-    });
+    let enc_fn = |data: &Vec<BigData>| to_string(black_box(&data)).unwrap().into_bytes();
+    let dec_fn = |encoded: &[u8]| serde_json::from_slice(encoded).unwrap();
+    bench_it(c, data, enc_fn, dec_fn, "json_big");
 }
 
 fn bson(c: &mut Criterion) {
@@ -86,53 +52,22 @@ fn bson(c: &mut Criterion) {
     }
     let data = Foo { data };
 
-    c.bench_function("bson_big_no_context_switching", |b| {
-        b.iter(|| {
-            let encoded = bson::to_vec(black_box(&data)).unwrap();
-            let data: Foo = bson::from_slice(&encoded).unwrap();
-            black_box(data);
-        })
-    });
-
-    let (first_tx, last_rx) = setup_channels_and_threads();
-
-    c.bench_function("bson_big_high_context_switching", |b| {
-        b.iter(|| {
-            let encoded = bson::to_vec(black_box(&data)).unwrap();
-            first_tx.send(encoded).unwrap();
-
-            let encoded = last_rx.recv().unwrap();
-            let data: Foo = bson::from_slice(&encoded).unwrap();
-            black_box(data);
-        })
-    });
+    let enc_fn = |data: &Foo| bson::to_vec(black_box(&data)).unwrap();
+    let dec_fn = |encoded: &[u8]| bson::from_slice(encoded).unwrap();
+    bench_it(c, data, enc_fn, dec_fn, "bson_big");
 }
 
 fn cbor(c: &mut Criterion) {
     let data = iter::repeat_with(BigData::new).take(10).collect::<Vec<_>>();
 
-    c.bench_function("cbor_big_no_context_switching", |b| {
-        b.iter(|| {
-            let mut encoded = Vec::new();
-            ciborium::into_writer(black_box(&data), black_box(&mut encoded)).unwrap();
-            let data: Vec<BigData> = ciborium::from_reader(black_box(&encoded[..])).unwrap();
-            black_box(data);
-        })
-    });
+    let enc_fn = |data: &Vec<BigData>| {
+        let mut encoded = Vec::new();
+        ciborium::into_writer(black_box(&data), black_box(&mut encoded)).unwrap();
 
-    let (first_tx, last_rx) = setup_channels_and_threads();
-
-    c.bench_function("cbor_big_high_context_switching", |b| {
-        b.iter(|| {
-            let mut encoded = Vec::new();
-            ciborium::into_writer(black_box(&data), black_box(&mut encoded)).unwrap();
-            first_tx.send(encoded).unwrap();
-
-            let encoded = last_rx.recv().unwrap();
-            let data: Vec<BigData> = ciborium::from_reader(black_box(&encoded[..])).unwrap();
-            black_box(data);
-        })
-    });
+        encoded
+    };
+    let dec_fn = |encoded: &[u8]| ciborium::from_reader(black_box(&encoded[..])).unwrap();
+    bench_it(c, data, enc_fn, dec_fn, "cbor_big");
 }
 
 #[derive(Deserialize, Serialize, Type, PartialEq, Debug, Clone)]
@@ -209,6 +144,36 @@ impl BigData {
             map5_loooooooooooooooooooooooong_name: map,
         }
     }
+}
+
+fn bench_it<D, EncFn, DecFn>(c: &mut Criterion, data: D, enc_fn: EncFn, dec_fn: DecFn, prefix: &str)
+where
+    D: Serialize + DeserializeOwned,
+    EncFn: Fn(&D) -> Vec<u8>,
+    DecFn: Fn(&[u8]) -> D,
+{
+    let name = format!("{prefix}_no_context_switching");
+    c.bench_function(&name, |b| {
+        b.iter(|| {
+            let encoded = enc_fn(black_box(&data));
+            let data: D = dec_fn(&encoded);
+            black_box(data);
+        })
+    });
+
+    let (first_tx, last_rx) = setup_channels_and_threads();
+
+    let name = format!("{prefix}_high_context_switching");
+    c.bench_function(&name, |b| {
+        b.iter(|| {
+            let encoded = enc_fn(black_box(&data));
+            first_tx.send(encoded.to_vec()).unwrap();
+
+            let encoded = last_rx.recv().unwrap();
+            let data: D = dec_fn(&encoded);
+            black_box(data);
+        })
+    });
 }
 
 fn setup_channels_and_threads() -> (
