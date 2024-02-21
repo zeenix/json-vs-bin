@@ -220,25 +220,31 @@ impl SmallData {
     }
 }
 
-fn bench_it<D, EncFn, DecFn>(c: &mut Criterion, data: D, enc_fn: EncFn, dec_fn: DecFn, prefix: &str)
-where
+fn bench_it<D, EncFn, DecFn>(
+    c: &mut Criterion,
+    data: D,
+    enc_fn: EncFn,
+    dec_fn: DecFn,
+    bench_name: &str,
+) where
     D: Serialize + DeserializeOwned,
     EncFn: Fn(&D) -> Vec<u8>,
     DecFn: Fn(&[u8]) -> D,
 {
-    let name = format!("{prefix}_no_context_switching");
-    c.bench_function(&name, |b| {
+    let mut group = c.benchmark_group("no_context_switching");
+    group.bench_function(bench_name, |b| {
         b.iter(|| {
             let encoded = enc_fn(black_box(&data));
             let data: D = dec_fn(&encoded);
             black_box(data);
         })
     });
+    drop(group);
 
     let (first_tx, last_rx) = setup_channels_and_threads();
 
-    let name = format!("{prefix}_high_context_switching");
-    c.bench_function(&name, |b| {
+    let mut group = c.benchmark_group("high_context_switching");
+    group.bench_function(bench_name, |b| {
         b.iter(|| {
             let encoded = enc_fn(black_box(&data));
             first_tx.send(encoded.to_vec()).unwrap();
