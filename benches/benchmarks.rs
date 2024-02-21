@@ -33,33 +33,63 @@ fn dbus(c: &mut Criterion) {
         data
     };
     bench_it(c, data, enc_fn, dec_fn, "dbus_big");
+
+    let data = iter::repeat_with(SmallData::new)
+        .take(10)
+        .collect::<Vec<_>>();
+    let enc_fn = |data: &Vec<SmallData>| {
+        to_bytes_for_signature(black_box(ctxt), black_box(&signature), black_box(data))
+            .unwrap()
+            .to_vec()
+    };
+    let dec_fn = |data: &[u8]| {
+        let encoded = zvariant::serialized::Data::new(data, ctxt);
+        let (data, _): (Vec<SmallData>, _) = encoded
+            .deserialize_for_signature(black_box(&signature))
+            .unwrap();
+        data
+    };
+    bench_it(c, data, enc_fn, dec_fn, "dbus_small");
 }
 
 fn json(c: &mut Criterion) {
     let data = iter::repeat_with(BigData::new).take(10).collect::<Vec<_>>();
-
     let enc_fn = |data: &Vec<BigData>| to_string(black_box(&data)).unwrap().into_bytes();
     let dec_fn = |encoded: &[u8]| serde_json::from_slice(encoded).unwrap();
     bench_it(c, data, enc_fn, dec_fn, "json_big");
+
+    let data = iter::repeat_with(SmallData::new)
+        .take(10)
+        .collect::<Vec<_>>();
+    let enc_fn = |data: &Vec<SmallData>| to_string(black_box(&data)).unwrap().into_bytes();
+    let dec_fn = |encoded: &[u8]| serde_json::from_slice(encoded).unwrap();
+    bench_it(c, data, enc_fn, dec_fn, "json_small");
 }
 
 fn bson(c: &mut Criterion) {
     let data = iter::repeat_with(BigData::new).take(10).collect::<Vec<_>>();
     // BSON can't handle arrays at the top level, so we wrap it in a struct.
-    #[derive(Deserialize, Serialize, Type, PartialEq, Debug, Clone)]
-    struct Foo {
-        data: Vec<BigData>,
+    #[derive(Deserialize, Serialize, PartialEq, Debug, Clone)]
+    struct Foo<D> {
+        data: Vec<D>,
     }
     let data = Foo { data };
 
-    let enc_fn = |data: &Foo| bson::to_vec(black_box(&data)).unwrap();
+    let enc_fn = |data: &Foo<BigData>| bson::to_vec(black_box(&data)).unwrap();
     let dec_fn = |encoded: &[u8]| bson::from_slice(encoded).unwrap();
     bench_it(c, data, enc_fn, dec_fn, "bson_big");
+
+    let data = iter::repeat_with(SmallData::new)
+        .take(10)
+        .collect::<Vec<_>>();
+    let data = Foo { data };
+    let enc_fn = |data: &Foo<SmallData>| bson::to_vec(black_box(&data)).unwrap();
+    let dec_fn = |encoded: &[u8]| bson::from_slice(encoded).unwrap();
+    bench_it(c, data, enc_fn, dec_fn, "bson_small");
 }
 
 fn cbor(c: &mut Criterion) {
     let data = iter::repeat_with(BigData::new).take(10).collect::<Vec<_>>();
-
     let enc_fn = |data: &Vec<BigData>| {
         let mut encoded = Vec::new();
         ciborium::into_writer(black_box(&data), black_box(&mut encoded)).unwrap();
@@ -68,6 +98,18 @@ fn cbor(c: &mut Criterion) {
     };
     let dec_fn = |encoded: &[u8]| ciborium::from_reader(black_box(&encoded[..])).unwrap();
     bench_it(c, data, enc_fn, dec_fn, "cbor_big");
+
+    let data = iter::repeat_with(SmallData::new)
+        .take(10)
+        .collect::<Vec<_>>();
+    let enc_fn = |data: &Vec<SmallData>| {
+        let mut encoded = Vec::new();
+        ciborium::into_writer(black_box(&data), black_box(&mut encoded)).unwrap();
+
+        encoded
+    };
+    let dec_fn = |encoded: &[u8]| ciborium::from_reader(black_box(&encoded[..])).unwrap();
+    bench_it(c, data, enc_fn, dec_fn, "cbor_small");
 }
 
 #[derive(Deserialize, Serialize, Type, PartialEq, Debug, Clone)]
@@ -142,6 +184,38 @@ impl BigData {
             int13_loooooooooooooooooooooooooooooooooooong_naaaaame: 42,
             string8: string.clone(),
             map5_loooooooooooooooooooooooong_name: map,
+        }
+    }
+}
+
+#[derive(Deserialize, Serialize, Type, PartialEq, Debug, Clone)]
+struct SmallData {
+    int1_loooooooooooooooooooooooooooooooooooong_name: u64,
+    int2_loooooooooooooooooooooooooooooooooooooong_name: u8,
+    bool1_looooooooooooooooooooooong_name: bool,
+    string1: String,
+    int3_loooooooooooooooooooooooooooooooooooong_naaaaame: u8,
+    string2: String,
+    map1_loooooooooooooooooooooooong_name: std::collections::HashMap<String, u32>,
+}
+
+impl SmallData {
+    pub fn new() -> Self {
+        let string = iter::repeat('o').take(250).collect::<String>();
+        let mut map = HashMap::new();
+        for i in 0..100 {
+            let mut key = string.clone();
+            key.push(unsafe { char::from_u32_unchecked(i as u32 + 64) });
+            map.insert(key.clone(), i);
+        }
+        Self {
+            int1_loooooooooooooooooooooooooooooooooooong_name: 42,
+            int2_loooooooooooooooooooooooooooooooooooooong_name: 42,
+            bool1_looooooooooooooooooooooong_name: true,
+            string1: "Hello, world!".to_string(),
+            int3_loooooooooooooooooooooooooooooooooooong_naaaaame: 42,
+            string2: string.clone(),
+            map1_loooooooooooooooooooooooong_name: map,
         }
     }
 }
