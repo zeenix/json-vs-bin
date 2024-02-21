@@ -244,7 +244,7 @@ fn bench_it<D, EncFn, DecFn>(
 
     let (first_tx, last_rx) = setup_channels_and_threads();
 
-    let mut group = c.benchmark_group("high_context_switching");
+    let mut group = c.benchmark_group("high_context_switching_threads");
     group.measurement_time(std::time::Duration::from_secs(20));
     group.bench_function(bench_name, |b| {
         b.iter(|| {
@@ -254,6 +254,24 @@ fn bench_it<D, EncFn, DecFn>(
             let encoded = last_rx.recv().unwrap();
             let data: D = dec_fn(&encoded);
             black_box(data);
+        })
+    });
+    drop(group);
+
+    let rt = tokio::runtime::Runtime::new().unwrap();
+    let (first_tx, mut last_rx) = setup_channels_and_tokio(&rt);
+    let mut group = c.benchmark_group("high_context_switching_tasks");
+    group.measurement_time(std::time::Duration::from_secs(20));
+    group.bench_function(bench_name, |b| {
+        b.iter(|| {
+            rt.block_on(async {
+                let encoded = enc_fn(black_box(&data));
+                first_tx.send(encoded.to_vec()).await.unwrap();
+
+                let encoded = last_rx.recv().await.unwrap();
+                let data: D = dec_fn(&encoded);
+                black_box(data);
+            })
         })
     });
 }
@@ -277,6 +295,33 @@ fn setup_channels_and_threads() -> (
                 Err(_) => break,
             };
             tx.send(msg).unwrap();
+        });
+    }
+
+    (first_tx, last_rx)
+}
+
+fn setup_channels_and_tokio(
+    rt: &tokio::runtime::Runtime,
+) -> (
+    tokio::sync::mpsc::Sender<Vec<u8>>,
+    tokio::sync::mpsc::Receiver<Vec<u8>>,
+) {
+    let (first_tx, mut last_rx) = tokio::sync::mpsc::channel(1);
+    for _ in 0..available_parallelism()
+        .map(Into::into)
+        .unwrap_or(DEFAULT_PARALLELISM)
+    {
+        let (tx, mut rx) = tokio::sync::mpsc::channel(1);
+        swap(&mut last_rx, &mut rx);
+        rt.spawn(async move {
+            loop {
+                let msg = match rx.recv().await {
+                    Some(msg) => msg,
+                    None => break,
+                };
+                tx.send(msg).await.unwrap();
+            }
         });
     }
 
