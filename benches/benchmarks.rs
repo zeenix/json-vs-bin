@@ -116,9 +116,6 @@ fn bincode(c: &mut Criterion) {
     let data = iter::repeat_with(BigData::new).take(10).collect::<Vec<_>>();
     let enc_fn = |data: &Vec<BigData>| bincode::serialize(&data).unwrap();
     let dec_fn = |bin: &[u8]| bincode::deserialize(bin).unwrap();
-
-    // let enc_fn = |data: &Vec<BigData>| to_string(black_box(&data)).unwrap().into_bytes();
-    // let dec_fn = |encoded: &[u8]| serde_json::from_slice(encoded).unwrap();
     bench_it(c, data, enc_fn, dec_fn, "bincode_big");
 
     let enc_fn = |data: &Vec<SmallData>| bincode::serialize(&data).unwrap();
