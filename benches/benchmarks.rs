@@ -118,11 +118,11 @@ fn bincode(c: &mut Criterion) {
     let dec_fn = |bin: &[u8]| bincode::deserialize(bin).unwrap();
     bench_it(c, data, enc_fn, dec_fn, "bincode_big");
 
-    let enc_fn = |data: &Vec<SmallData>| bincode::serialize(&data).unwrap();
-    let dec_fn = |bin: &[u8]| bincode::deserialize(bin).unwrap();
     let data = iter::repeat_with(SmallData::new)
         .take(10)
         .collect::<Vec<_>>();
+    let enc_fn = |data: &Vec<SmallData>| bincode::serialize(&data).unwrap();
+    let dec_fn = |bin: &[u8]| bincode::deserialize(bin).unwrap();
     bench_it(c, data, enc_fn, dec_fn, "bincode_small");
 }
 
