@@ -61,7 +61,7 @@ The results on my machines (from one of the runs) are as follows for different f
 ### Bincode 
 
 | Context Switching | Size  | Time (µs) |
-| ----------------- | ----------------- |
+| ----------------- | ----- | --------- |
 | No                | Big   | 2096.4    |
 | High (threads)    | Big   | 3139.1    |
 | High (tasks)      | Big   | 2630.9    |
