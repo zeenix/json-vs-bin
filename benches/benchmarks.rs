@@ -10,10 +10,9 @@ use serde::{de::DeserializeOwned, Deserialize, Serialize};
 
 use criterion::{black_box, criterion_group, criterion_main, Criterion};
 
-use serde_json::to_string;
 use zvariant::{serialized::Context, to_bytes_for_signature, Type, LE};
 
-criterion_group!(benches, dbus, json, bson, cbor, bincode);
+criterion_group!(benches, dbus, json, simd_json, bson, cbor, bincode);
 criterion_main!(benches);
 
 fn dbus(c: &mut Criterion) {
@@ -54,16 +53,39 @@ fn dbus(c: &mut Criterion) {
 
 fn json(c: &mut Criterion) {
     let data = iter::repeat_with(BigData::new).take(10).collect::<Vec<_>>();
-    let enc_fn = |data: &Vec<BigData>| to_string(black_box(&data)).unwrap().into_bytes();
+    let enc_fn = |data: &Vec<BigData>| {
+        serde_json::to_string(black_box(&data))
+            .unwrap()
+            .into_bytes()
+    };
     let dec_fn = |encoded: &[u8]| serde_json::from_slice(encoded).unwrap();
     bench_it(c, data, enc_fn, dec_fn, "json_big");
 
     let data = iter::repeat_with(SmallData::new)
         .take(10)
         .collect::<Vec<_>>();
-    let enc_fn = |data: &Vec<SmallData>| to_string(black_box(&data)).unwrap().into_bytes();
+    let enc_fn = |data: &Vec<SmallData>| {
+        serde_json::to_string(black_box(&data))
+            .unwrap()
+            .into_bytes()
+    };
     let dec_fn = |encoded: &[u8]| serde_json::from_slice(encoded).unwrap();
     bench_it(c, data, enc_fn, dec_fn, "json_small");
+}
+
+fn simd_json(c: &mut Criterion) {
+    let data = iter::repeat_with(BigData::new).take(10).collect::<Vec<_>>();
+    let enc_fn = |data: &Vec<BigData>| simd_json::to_string(black_box(&data)).unwrap().into_bytes();
+    let dec_fn = |encoded: &[u8]| simd_json::from_reader(encoded).unwrap();
+    bench_it(c, data, enc_fn, dec_fn, "simd_json_big");
+
+    let data = iter::repeat_with(SmallData::new)
+        .take(10)
+        .collect::<Vec<_>>();
+    let enc_fn =
+        |data: &Vec<SmallData>| simd_json::to_string(black_box(&data)).unwrap().into_bytes();
+    let dec_fn = |encoded: &[u8]| simd_json::from_reader(encoded).unwrap();
+    bench_it(c, data, enc_fn, dec_fn, "simd_json_small");
 }
 
 fn bson(c: &mut Criterion) {
