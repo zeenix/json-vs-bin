@@ -272,6 +272,11 @@ fn bench_it<D, EncFn, DecFn>(
     group.bench_function(bench_name, |b| {
         b.iter(|| {
             let encoded = enc_fn(black_box(&data));
+            // We only want to compare the diff of context switching, and not the data cloning.
+            for _ in 0..parallelism() {
+                let copy = encoded.clone();
+                black_box(copy);
+            }
             let data: D = dec_fn(&encoded);
             black_box(data);
         })
@@ -319,10 +324,7 @@ fn setup_channels_and_threads() -> (
     // Create 8 threads and channels, with main thread receiving back what it sends to the first
     // channel, from the last channel in the chain.
     let (first_tx, mut last_rx) = channel();
-    for _ in 0..available_parallelism()
-        .map(Into::into)
-        .unwrap_or(DEFAULT_PARALLELISM)
-    {
+    for _ in 0..parallelism() {
         let (tx, mut rx) = channel();
         swap(&mut last_rx, &mut rx);
         std::thread::spawn(move || loop {
@@ -344,10 +346,7 @@ fn setup_channels_and_tokio(
     tokio::sync::mpsc::Receiver<Vec<u8>>,
 ) {
     let (first_tx, mut last_rx) = tokio::sync::mpsc::channel(1);
-    for _ in 0..available_parallelism()
-        .map(Into::into)
-        .unwrap_or(DEFAULT_PARALLELISM)
-    {
+    for _ in 0..parallelism() {
         let (tx, mut rx) = tokio::sync::mpsc::channel(1);
         swap(&mut last_rx, &mut rx);
         rt.spawn(async move {
@@ -362,6 +361,12 @@ fn setup_channels_and_tokio(
     }
 
     (first_tx, last_rx)
+}
+
+fn parallelism() -> usize {
+    available_parallelism()
+        .map(Into::into)
+        .unwrap_or(DEFAULT_PARALLELISM)
 }
 
 const DEFAULT_PARALLELISM: usize = 8;
