@@ -10,6 +10,18 @@ and decoding.
 cargo +nightly bench
 ```
 
+## Versions Used (Latest as of January 2025)
+
+- serde: 1.0.219
+- serde_json: 1.0.143
+- zvariant: 5.7.0 (D-Bus format)
+- bson: 3.0.0
+- ciborium: 0.2.2 (CBOR format)
+- bincode: 2.0.1
+- simd-json: 0.15.1
+- criterion: 0.7.0 (benchmarking framework)
+- tokio: 1.47.1
+
 ## Results
 
 The results on my machines (from one of the runs) are as follows for different formats:

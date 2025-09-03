@@ -8,26 +8,30 @@ use std::{
 
 use serde::{de::DeserializeOwned, Deserialize, Serialize};
 
-use criterion::{black_box, criterion_group, criterion_main, Criterion};
+use criterion::{criterion_group, criterion_main, Criterion};
+use std::hint::black_box;
 
-use zvariant::{serialized::Context, to_bytes_for_signature, Type, LE};
+use zvariant::{
+    serialized::{Context, Data},
+    to_bytes_for_signature, Endian, Type,
+};
 
 criterion_group!(benches, dbus, json, simd_json, bson, cbor, bincode);
 criterion_main!(benches);
 
 fn dbus(c: &mut Criterion) {
-    let signature = <Vec<BigData>>::signature();
-    let ctxt = Context::new_dbus(LE, 0);
+    let signature = <Vec<BigData> as Type>::SIGNATURE;
+    let ctxt = Context::new_dbus(Endian::Little, 0);
     let data = iter::repeat_with(BigData::new).take(10).collect::<Vec<_>>();
     let enc_fn = |data: &Vec<BigData>| {
-        to_bytes_for_signature(black_box(ctxt), black_box(&signature), black_box(data))
+        to_bytes_for_signature(black_box(ctxt), black_box(signature), black_box(data))
             .unwrap()
             .to_vec()
     };
     let dec_fn = |data: &[u8]| {
-        let encoded = zvariant::serialized::Data::new(data, ctxt);
+        let encoded = Data::new(data, ctxt);
         let (data, _): (Vec<BigData>, _) = encoded
-            .deserialize_for_signature(black_box(&signature))
+            .deserialize_for_signature(black_box(signature))
             .unwrap();
         data
     };
@@ -36,15 +40,16 @@ fn dbus(c: &mut Criterion) {
     let data = iter::repeat_with(SmallData::new)
         .take(10)
         .collect::<Vec<_>>();
+    let signature = <Vec<SmallData> as Type>::SIGNATURE;
     let enc_fn = |data: &Vec<SmallData>| {
-        to_bytes_for_signature(black_box(ctxt), black_box(&signature), black_box(data))
+        to_bytes_for_signature(black_box(ctxt), black_box(signature), black_box(data))
             .unwrap()
             .to_vec()
     };
     let dec_fn = |data: &[u8]| {
-        let encoded = zvariant::serialized::Data::new(data, ctxt);
+        let encoded = Data::new(data, ctxt);
         let (data, _): (Vec<SmallData>, _) = encoded
-            .deserialize_for_signature(black_box(&signature))
+            .deserialize_for_signature(black_box(signature))
             .unwrap();
         data
     };
@@ -97,16 +102,16 @@ fn bson(c: &mut Criterion) {
     }
     let data = Foo { data };
 
-    let enc_fn = |data: &Foo<BigData>| bson::to_vec(black_box(&data)).unwrap();
-    let dec_fn = |encoded: &[u8]| bson::from_slice(encoded).unwrap();
+    let enc_fn = |data: &Foo<BigData>| bson::ser::serialize_to_vec(black_box(&data)).unwrap();
+    let dec_fn = |encoded: &[u8]| bson::de::deserialize_from_slice(encoded).unwrap();
     bench_it(c, data, enc_fn, dec_fn, "bson_big");
 
     let data = iter::repeat_with(SmallData::new)
         .take(10)
         .collect::<Vec<_>>();
     let data = Foo { data };
-    let enc_fn = |data: &Foo<SmallData>| bson::to_vec(black_box(&data)).unwrap();
-    let dec_fn = |encoded: &[u8]| bson::from_slice(encoded).unwrap();
+    let enc_fn = |data: &Foo<SmallData>| bson::ser::serialize_to_vec(black_box(&data)).unwrap();
+    let dec_fn = |encoded: &[u8]| bson::de::deserialize_from_slice(encoded).unwrap();
     bench_it(c, data, enc_fn, dec_fn, "bson_small");
 }
 
@@ -135,16 +140,25 @@ fn cbor(c: &mut Criterion) {
 }
 
 fn bincode(c: &mut Criterion) {
+    let config = bincode::config::standard();
     let data = iter::repeat_with(BigData::new).take(10).collect::<Vec<_>>();
-    let enc_fn = |data: &Vec<BigData>| bincode::serialize(&data).unwrap();
-    let dec_fn = |bin: &[u8]| bincode::deserialize(bin).unwrap();
+    let enc_fn = |data: &Vec<BigData>| bincode::serde::encode_to_vec(&data, config).unwrap();
+    let dec_fn = |bin: &[u8]| {
+        let (decoded, _): (Vec<BigData>, _) =
+            bincode::serde::decode_from_slice(bin, config).unwrap();
+        decoded
+    };
     bench_it(c, data, enc_fn, dec_fn, "bincode_big");
 
     let data = iter::repeat_with(SmallData::new)
         .take(10)
         .collect::<Vec<_>>();
-    let enc_fn = |data: &Vec<SmallData>| bincode::serialize(&data).unwrap();
-    let dec_fn = |bin: &[u8]| bincode::deserialize(bin).unwrap();
+    let enc_fn = |data: &Vec<SmallData>| bincode::serde::encode_to_vec(&data, config).unwrap();
+    let dec_fn = |bin: &[u8]| {
+        let (decoded, _): (Vec<SmallData>, _) =
+            bincode::serde::decode_from_slice(bin, config).unwrap();
+        decoded
+    };
     bench_it(c, data, enc_fn, dec_fn, "bincode_small");
 }
 
