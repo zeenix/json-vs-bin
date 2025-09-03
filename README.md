@@ -10,18 +10,6 @@ and decoding.
 cargo +nightly bench
 ```
 
-## Versions Used (Latest as of January 2025)
-
-- serde: 1.0.219
-- serde_json: 1.0.143
-- zvariant: 5.7.0 (D-Bus format)
-- bson: 3.0.0
-- ciborium: 0.2.2 (CBOR format)
-- bincode: 2.0.1
-- simd-json: 0.15.1
-- criterion: 0.7.0 (benchmarking framework)
-- tokio: 1.47.1
-
 ## Results
 
 The results on my machines (from one of the runs) are as follows for different formats:
@@ -30,12 +18,13 @@ The results on my machines (from one of the runs) are as follows for different f
 
 | Context Switching | Size  | Time (µs) |
 | ----------------- | ----- | --------- |
-| No                | Big   | 2711.3    |
-| High (threads)    | Big   | 3655.1    |
-| High (tasks)      | Big   | 3029.0    |
-| No                | Small |  527.8    |
-| High (threads)    | Small |  907.9    |
-| High (tasks)      | Small |  605.5    |
+| No                | Big   | 2013.8    |
+| High (threads)    | Big   | 1867.4    |
+| High (tasks)      | Big   | 1720.5    |
+| No                | Small |  441.4    |
+| High (threads)    | Small |  439.1    |
+| High (tasks)      | Small |  360.6    |
+
 
 ### D-Bus
 
@@ -52,34 +41,45 @@ The results on my machines (from one of the runs) are as follows for different f
 
 | Context Switching | Size  | Time (µs) |
 | ----------------- | ----- | --------- |
-| No                | Big   | 2296.8    |
-| High (threads)    | Big   | 3154.1    |
-| High (tasks)      | Big   | 2636.9    |
-| No                | Small |  439.5    |
-| High (threads)    | Small | 1444.4    |
-| High (tasks)      | Small |  507.5    |
+| No                | Big   | 2260.5    |
+| High (threads)    | Big   | 2131.9    |
+| High (tasks)      | Big   | 1968.5    |
+| No                | Small |  496.2    |
+| High (threads)    | Small |  509.0    |
+| High (tasks)      | Small |  415.7    |
 
 ### CBOR
 
 | Context Switching | Size  | Time (µs) |
 | ----------------- | ----- | --------- |
-| No                | Big   | 1441.8    |
-| High (threads)    | Big   | 2420.1    |
-| High (tasks)      | Big   | 1766.7    |
-| No                | Small |  273.6    |
-| High (threads)    | Small | 1212.1    |
-| High (tasks)      | Small |  319.0    |
+| No                | Big   | 1470.3    |
+| High (threads)    | Big   | 1241.7    |
+| High (tasks)      | Big   | 1145.4    |
+| No                | Small |  333.5    |
+| High (threads)    | Small |  329.0    |
+| High (tasks)      | Small |  245.2    |
 
 ### Bincode 
 
 | Context Switching | Size  | Time (µs) |
 | ----------------- | ----- | --------- |
-| No                | Big   | 2096.4    |
-| High (threads)    | Big   | 3139.1    |
-| High (tasks)      | Big   | 2630.9    |
-| No                | Small |  142.7    |
-| High (threads)    | Small |  806.2    |
-| High (tasks)      | Small |  183.1    |
+| No                | Big   |  1042.0   |
+| High (threads)    | Big   |   779.7   |
+| High (tasks)      | Big   |   688.2   |
+| No                | Small |   239.8   |
+| High (threads)    | Small |   227.6   |
+| High (tasks)      | Small |   152.2   |
+
+### Bitcode
+
+| Context Switching | Size  | Time (µs) |
+| ----------------- | ----- | --------- |
+| No                | Big   | 1752.8    |
+| High (threads)    | Big   | 1942.5    |
+| High (tasks)      | Big   |  619.2    |
+| No                | Small |  223.4    |
+| High (threads)    | Small |  207.7    |
+| High (tasks)      | Small |  139.2    |
 
 Not only YMMV, but also the results are not very consistent across runs. They depends a lot on the
 system load (which can fluctuate a lot). So it's best to run the benchmarks multiple times and take

@@ -16,7 +16,7 @@ use zvariant::{
     to_bytes_for_signature, Endian, Type,
 };
 
-criterion_group!(benches, dbus, json, simd_json, bson, cbor, bincode);
+criterion_group!(benches, dbus, json, simd_json, bson, cbor, bincode, bitcode);
 criterion_main!(benches);
 
 fn dbus(c: &mut Criterion) {
@@ -160,6 +160,20 @@ fn bincode(c: &mut Criterion) {
         decoded
     };
     bench_it(c, data, enc_fn, dec_fn, "bincode_small");
+}
+
+fn bitcode(c: &mut Criterion) {
+    let data = iter::repeat_with(BigData::new).take(10).collect::<Vec<_>>();
+    let enc_fn = |data: &Vec<BigData>| bitcode::serialize(black_box(&data)).unwrap();
+    let dec_fn = |bin: &[u8]| bitcode::deserialize(bin).unwrap();
+    bench_it(c, data, enc_fn, dec_fn, "bitcode_big");
+
+    let data = iter::repeat_with(SmallData::new)
+        .take(10)
+        .collect::<Vec<_>>();
+    let enc_fn = |data: &Vec<SmallData>| bitcode::serialize(black_box(&data)).unwrap();
+    let dec_fn = |bin: &[u8]| bitcode::deserialize(bin).unwrap();
+    bench_it(c, data, enc_fn, dec_fn, "bitcode_small");
 }
 
 #[derive(Deserialize, Serialize, Type, PartialEq, Debug, Clone)]
