@@ -76,6 +76,6 @@ the average.
 ## Observations
 
 - For small payloads, JSON is at least as fast as the binary formats.
-- JSON encoding is most efficient when there are a lot of hashmaps invovled, especially with string keys.
+- JSON encoding is most efficient when there are a lot of hashmaps involved, especially with string keys.
 - Effect of context switching is more pronounced when the payload is small.
 - Tokio tasks (backed by thread pools) are significantly more efficient than pure threads.
