@@ -12,23 +12,26 @@ use json_vs_bin::{
     vector_data::{BigVectorData, SmallVectorData},
 };
 
-criterion_group!(
-    benches,
-    dbus,
-    json,
-    simd_json,
-    bson,
-    cbor,
-    bincode,
-    bitcode,
-    dbus_vector,
-    json_vector,
-    simd_json_vector,
-    bson_vector,
-    cbor_vector,
-    bincode_vector,
-    bitcode_vector
-);
+criterion_group! {
+    name = benches;
+    config = Criterion::default()
+        .measurement_time(std::time::Duration::from_secs(30))
+        .sample_size(60);
+    targets = dbus,
+        json,
+        simd_json,
+        bson,
+        cbor,
+        bincode,
+        bitcode,
+        dbus_vector,
+        json_vector,
+        simd_json_vector,
+        bson_vector,
+        cbor_vector,
+        bincode_vector,
+        bitcode_vector
+}
 criterion_main!(benches);
 
 fn dbus(c: &mut Criterion) {
