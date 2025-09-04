@@ -21,16 +21,16 @@ This will output a comparison of encoded sizes for each format.
 
 The results on my machines (from one of the runs) are as follows for different formats:
 
-### HashMap-based Data (with long field names)
+### HashMap-based Data
 
-| Format   | Big (µs) | Small (µs) |
-| -------- | -------- | ---------- |
-| JSON     | 1464.6   | 304.5      |
-| D-Bus    | 1067.4   | 227.3      |
-| BSON     | 1841.7   | 384.0      |
-| CBOR     | 1061.3   | 211.3      |
-| Bincode  |  635.9   | 127.2      |
-| Bitcode  |  573.5   | 116.1      |
+| Format    | Big (µs) | Small (µs) |
+| --------- | -------- | ---------- |
+| JSON      |  492.8   |  88.6      |
+| D-Bus     |  666.8   | 135.6      |
+| BSON      |  714.3   | 139.3      |
+| CBOR      |  705.1   | 135.6      |
+| Bincode   |  305.0   |  57.3      |
+| Bitcode   |  265.7   |  54.4      |
 
 ### Vector-based Data (arrays of structs)
 
@@ -53,8 +53,9 @@ the average.
 
 #### HashMap-based Data
 
-- JSON performs competitively, especially for small payloads.
-- Binary formats like Bincode and Bitcode show ~2x performance advantage.
+- Bitcode is the fastest, ~1.8x faster than JSON for big payloads.
+- Bincode shows ~1.6x performance advantage over JSON.
+- D-Bus, BSON, and CBOR are actually slower than JSON for HashMap data.
 
 #### Vector-based Data
 
@@ -66,12 +67,13 @@ the average.
 
 The size comparison heavily depends on the data structure:
 
-#### HashMap-based Data (with long field names)
+#### HashMap-based Data
 
-- Binary formats achieve only modest size reduction (2-3% savings).
-- Bitcode is most compact at ~97% of JSON size.
-- BSON and D-Bus actually produce larger outputs than JSON.
-- JSON is surprisingly efficient for data with many string keys and long field names.
+- Binary formats now achieve significant size reduction (30-37% savings).
+- Bitcode is most compact at ~66% of JSON size.
+- BSON and D-Bus produce larger outputs than JSON (~121% and ~120% respectively).
+- CBOR achieves ~78% of JSON size.
+- Bincode achieves ~70% of JSON size.
 
 #### Vector-based Data (arrays of structs)
 

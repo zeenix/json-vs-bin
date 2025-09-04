@@ -68,7 +68,7 @@ fn main() {
     let bitcode_small_vector = formats::Bitcode::encode_small_vector(&small_vector_data);
 
     // Display results in a table
-    println!("## HashMap-based Data (with long field names)");
+    println!("## HashMap-based Data");
     println!();
     println!("### Big Payload (10 instances)");
     println!();
