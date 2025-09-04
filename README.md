@@ -17,43 +17,43 @@ The results on my machines (from one of the runs) are as follows for different f
 
 | Size  | Time (µs) |
 | ----- | --------- |
-| Big   | 2013.8    |
-| Small |  441.4    |
+| Big   | 1464.6    |
+| Small |  304.5    |
 
 ### D-Bus
 
 | Size  | Time (µs) |
 | ----- | --------- |
-| Big   | 2241.5    |
-| Small |  470.2    |
+| Big   | 1067.4    |
+| Small |  227.3    |
 
 ### BSON
 
 | Size  | Time (µs) |
 | ----- | --------- |
-| Big   | 2260.5    |
-| Small |  496.2    |
+| Big   | 1841.7    |
+| Small |  384.0    |
 
 ### CBOR
 
 | Size  | Time (µs) |
 | ----- | --------- |
-| Big   | 1470.3    |
-| Small |  333.5    |
+| Big   | 1061.3    |
+| Small |  211.3    |
 
 ### Bincode
 
 | Size  | Time (µs) |
 | ----- | --------- |
-| Big   |  1042.0   |
-| Small |   239.8   |
+| Big   |  635.9    |
+| Small |  127.2    |
 
 ### Bitcode
 
 | Size  | Time (µs) |
 | ----- | --------- |
-| Big   | 1752.8    |
-| Small |  223.4    |
+| Big   |  573.5    |
+| Small |  116.1    |
 
 Not only YMMV, but also the results are not very consistent across runs. They depends a lot on the
 system load (which can fluctuate a lot). So it's best to run the benchmarks multiple times and take
