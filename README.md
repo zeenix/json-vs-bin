@@ -9,6 +9,14 @@ speed of encoding and decoding for different payload sizes.
 cargo +nightly bench
 ```
 
+## Running the size analysis
+
+```bash
+cargo run
+```
+
+This will output a comparison of encoded sizes for each format.
+
 ## Results
 
 The results on my machines (from one of the runs) are as follows for different formats:
@@ -61,6 +69,13 @@ the average.
 
 ## Observations
 
+### Performance
 - For small payloads, JSON performs competitively with binary formats.
 - JSON encoding is most efficient when there are a lot of hashmaps involved, especially with string keys.
 - Binary formats like Bincode and Bitcode show significant performance advantages for both payload sizes.
+
+### Size
+- Binary formats achieve only modest size reduction compared to JSON (around 2-3% savings).
+- Bitcode produces the most compact encoding, saving about 3% compared to JSON.
+- BSON and D-Bus actually produce larger outputs than JSON due to their metadata overhead.
+- The small compression gains suggest that JSON's text format is reasonably efficient for data with many string keys.

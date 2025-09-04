@@ -1,176 +1,121 @@
 /// This benchmark is to compare the performance of JSON and a few binary formats.
-use std::{collections::HashMap, iter};
+use std::iter;
 
-use serde::{de::DeserializeOwned, Deserialize, Serialize};
+use serde::{de::DeserializeOwned, Serialize};
 
 use criterion::{criterion_group, criterion_main, Criterion};
 use std::hint::black_box;
 
-use zvariant::{
-    serialized::{Context, Data},
-    to_bytes_for_signature, Endian, Type,
+use json_vs_bin::{
+    data::{BigData, SmallData},
+    formats,
 };
 
 criterion_group!(benches, dbus, json, simd_json, bson, cbor, bincode, bitcode);
 criterion_main!(benches);
 
 fn dbus(c: &mut Criterion) {
-    let signature = <Vec<BigData> as Type>::SIGNATURE;
-    let ctxt = Context::new_dbus(Endian::Little, 0);
+    let dbus = formats::DBus::new();
     let data = iter::repeat_with(BigData::new).take(10).collect::<Vec<_>>();
-    let enc_fn = |data: &Vec<BigData>| {
-        to_bytes_for_signature(black_box(ctxt), black_box(signature), black_box(data))
-            .unwrap()
-            .to_vec()
-    };
-    let dec_fn = |data: &[u8]| {
-        let encoded = Data::new(data, ctxt);
-        let (data, _): (Vec<BigData>, _) = encoded
-            .deserialize_for_signature(black_box(signature))
-            .unwrap();
-        data
-    };
+    let enc_fn = |data: &Vec<BigData>| dbus.encode_big(black_box(data));
+    let dec_fn = |bytes: &[u8]| dbus.decode_big(bytes);
     bench_it(c, data, enc_fn, dec_fn, "dbus_big");
 
     let data = iter::repeat_with(SmallData::new)
         .take(10)
         .collect::<Vec<_>>();
-    let signature = <Vec<SmallData> as Type>::SIGNATURE;
-    let enc_fn = |data: &Vec<SmallData>| {
-        to_bytes_for_signature(black_box(ctxt), black_box(signature), black_box(data))
-            .unwrap()
-            .to_vec()
-    };
-    let dec_fn = |data: &[u8]| {
-        let encoded = Data::new(data, ctxt);
-        let (data, _): (Vec<SmallData>, _) = encoded
-            .deserialize_for_signature(black_box(signature))
-            .unwrap();
-        data
-    };
+    let enc_fn = |data: &Vec<SmallData>| dbus.encode_small(black_box(data));
+    let dec_fn = |bytes: &[u8]| dbus.decode_small(bytes);
     bench_it(c, data, enc_fn, dec_fn, "dbus_small");
 }
 
 fn json(c: &mut Criterion) {
     let data = iter::repeat_with(BigData::new).take(10).collect::<Vec<_>>();
-    let enc_fn = |data: &Vec<BigData>| {
-        serde_json::to_string(black_box(&data))
-            .unwrap()
-            .into_bytes()
-    };
-    let dec_fn = |encoded: &[u8]| serde_json::from_slice(encoded).unwrap();
+    let enc_fn = |data: &Vec<BigData>| formats::Json::encode_big(black_box(data));
+    let dec_fn = |bytes: &[u8]| formats::Json::decode_big(bytes);
     bench_it(c, data, enc_fn, dec_fn, "json_big");
 
     let data = iter::repeat_with(SmallData::new)
         .take(10)
         .collect::<Vec<_>>();
-    let enc_fn = |data: &Vec<SmallData>| {
-        serde_json::to_string(black_box(&data))
-            .unwrap()
-            .into_bytes()
-    };
-    let dec_fn = |encoded: &[u8]| serde_json::from_slice(encoded).unwrap();
+    let enc_fn = |data: &Vec<SmallData>| formats::Json::encode_small(black_box(data));
+    let dec_fn = |bytes: &[u8]| formats::Json::decode_small(bytes);
     bench_it(c, data, enc_fn, dec_fn, "json_small");
 }
 
 fn simd_json(c: &mut Criterion) {
     let data = iter::repeat_with(BigData::new).take(10).collect::<Vec<_>>();
-    let enc_fn = |data: &Vec<BigData>| simd_json::to_string(black_box(&data)).unwrap().into_bytes();
-    let dec_fn = |encoded: &[u8]| simd_json::from_reader(encoded).unwrap();
+    let enc_fn = |data: &Vec<BigData>| formats::SimdJson::encode_big(black_box(data));
+    let dec_fn = |bytes: &[u8]| formats::SimdJson::decode_big(bytes);
     bench_it(c, data, enc_fn, dec_fn, "simd_json_big");
 
     let data = iter::repeat_with(SmallData::new)
         .take(10)
         .collect::<Vec<_>>();
-    let enc_fn =
-        |data: &Vec<SmallData>| simd_json::to_string(black_box(&data)).unwrap().into_bytes();
-    let dec_fn = |encoded: &[u8]| simd_json::from_reader(encoded).unwrap();
+    let enc_fn = |data: &Vec<SmallData>| formats::SimdJson::encode_small(black_box(data));
+    let dec_fn = |bytes: &[u8]| formats::SimdJson::decode_small(bytes);
     bench_it(c, data, enc_fn, dec_fn, "simd_json_small");
 }
 
 fn bson(c: &mut Criterion) {
     let data = iter::repeat_with(BigData::new).take(10).collect::<Vec<_>>();
-    // BSON can't handle arrays at the top level, so we wrap it in a struct.
-    #[derive(Deserialize, Serialize, PartialEq, Debug, Clone)]
-    struct Foo<D> {
-        data: Vec<D>,
-    }
-    let data = Foo { data };
-
-    let enc_fn = |data: &Foo<BigData>| bson::ser::serialize_to_vec(black_box(&data)).unwrap();
-    let dec_fn = |encoded: &[u8]| bson::de::deserialize_from_slice(encoded).unwrap();
+    let enc_fn = |data: &Vec<BigData>| formats::Bson::encode_big(black_box(data));
+    let dec_fn = |bytes: &[u8]| formats::Bson::decode_big(bytes);
     bench_it(c, data, enc_fn, dec_fn, "bson_big");
 
     let data = iter::repeat_with(SmallData::new)
         .take(10)
         .collect::<Vec<_>>();
-    let data = Foo { data };
-    let enc_fn = |data: &Foo<SmallData>| bson::ser::serialize_to_vec(black_box(&data)).unwrap();
-    let dec_fn = |encoded: &[u8]| bson::de::deserialize_from_slice(encoded).unwrap();
+    let enc_fn = |data: &Vec<SmallData>| formats::Bson::encode_small(black_box(data));
+    let dec_fn = |bytes: &[u8]| formats::Bson::decode_small(bytes);
     bench_it(c, data, enc_fn, dec_fn, "bson_small");
 }
 
 fn cbor(c: &mut Criterion) {
     let data = iter::repeat_with(BigData::new).take(10).collect::<Vec<_>>();
-    let enc_fn = |data: &Vec<BigData>| {
-        let mut encoded = Vec::new();
-        ciborium::into_writer(black_box(&data), black_box(&mut encoded)).unwrap();
-
-        encoded
-    };
-    let dec_fn = |encoded: &[u8]| ciborium::from_reader(black_box(&encoded[..])).unwrap();
+    let enc_fn = |data: &Vec<BigData>| formats::Cbor::encode_big(black_box(data));
+    let dec_fn = |bytes: &[u8]| formats::Cbor::decode_big(bytes);
     bench_it(c, data, enc_fn, dec_fn, "cbor_big");
 
     let data = iter::repeat_with(SmallData::new)
         .take(10)
         .collect::<Vec<_>>();
-    let enc_fn = |data: &Vec<SmallData>| {
-        let mut encoded = Vec::new();
-        ciborium::into_writer(black_box(&data), black_box(&mut encoded)).unwrap();
-
-        encoded
-    };
-    let dec_fn = |encoded: &[u8]| ciborium::from_reader(black_box(&encoded[..])).unwrap();
+    let enc_fn = |data: &Vec<SmallData>| formats::Cbor::encode_small(black_box(data));
+    let dec_fn = |bytes: &[u8]| formats::Cbor::decode_small(bytes);
     bench_it(c, data, enc_fn, dec_fn, "cbor_small");
 }
 
 fn bincode(c: &mut Criterion) {
-    let config = bincode::config::standard();
+    let bincode = formats::Bincode::new();
     let data = iter::repeat_with(BigData::new).take(10).collect::<Vec<_>>();
-    let enc_fn = |data: &Vec<BigData>| bincode::serde::encode_to_vec(&data, config).unwrap();
-    let dec_fn = |bin: &[u8]| {
-        let (decoded, _): (Vec<BigData>, _) =
-            bincode::serde::decode_from_slice(bin, config).unwrap();
-        decoded
-    };
+    let enc_fn = |data: &Vec<BigData>| bincode.encode_big(black_box(data));
+    let dec_fn = |bytes: &[u8]| bincode.decode_big(bytes);
     bench_it(c, data, enc_fn, dec_fn, "bincode_big");
 
     let data = iter::repeat_with(SmallData::new)
         .take(10)
         .collect::<Vec<_>>();
-    let enc_fn = |data: &Vec<SmallData>| bincode::serde::encode_to_vec(&data, config).unwrap();
-    let dec_fn = |bin: &[u8]| {
-        let (decoded, _): (Vec<SmallData>, _) =
-            bincode::serde::decode_from_slice(bin, config).unwrap();
-        decoded
-    };
+    let enc_fn = |data: &Vec<SmallData>| bincode.encode_small(black_box(data));
+    let dec_fn = |bytes: &[u8]| bincode.decode_small(bytes);
     bench_it(c, data, enc_fn, dec_fn, "bincode_small");
 }
 
 fn bitcode(c: &mut Criterion) {
     let data = iter::repeat_with(BigData::new).take(10).collect::<Vec<_>>();
-    let enc_fn = |data: &Vec<BigData>| bitcode::serialize(black_box(&data)).unwrap();
-    let dec_fn = |bin: &[u8]| bitcode::deserialize(bin).unwrap();
+    let enc_fn = |data: &Vec<BigData>| formats::Bitcode::encode_big(black_box(data));
+    let dec_fn = |bytes: &[u8]| formats::Bitcode::decode_big(bytes);
     bench_it(c, data, enc_fn, dec_fn, "bitcode_big");
 
     let data = iter::repeat_with(SmallData::new)
         .take(10)
         .collect::<Vec<_>>();
-    let enc_fn = |data: &Vec<SmallData>| bitcode::serialize(black_box(&data)).unwrap();
-    let dec_fn = |bin: &[u8]| bitcode::deserialize(bin).unwrap();
+    let enc_fn = |data: &Vec<SmallData>| formats::Bitcode::encode_small(black_box(data));
+    let dec_fn = |bytes: &[u8]| formats::Bitcode::decode_small(bytes);
     bench_it(c, data, enc_fn, dec_fn, "bitcode_small");
 }
 
+// Data structures removed - now using shared library from json_vs_bin crate
+/*
 #[derive(Deserialize, Serialize, Type, PartialEq, Debug, Clone)]
 struct BigData {
     int1_loooooooooooooooooooooooooooooooooooong_name: u64,
@@ -278,6 +223,7 @@ impl SmallData {
         }
     }
 }
+*/
 
 fn bench_it<D, EncFn, DecFn>(
     c: &mut Criterion,
