@@ -2,7 +2,7 @@ use crate::data::{BigData, SmallData};
 use serde::{Deserialize, Serialize};
 use zvariant::{
     serialized::{Context, Data},
-    to_bytes_for_signature, Endian, Type,
+    to_bytes, Endian,
 };
 
 // Helper struct for BSON which can't handle arrays at the top level.
@@ -66,30 +66,26 @@ impl DBus {
     }
 
     pub fn encode_big(&self, data: &[BigData]) -> Vec<u8> {
-        let signature = <Vec<BigData> as Type>::SIGNATURE;
-        to_bytes_for_signature(self.context, signature, &data.to_vec())
+        to_bytes(self.context, &data.to_vec())
             .unwrap()
             .to_vec()
     }
 
     pub fn encode_small(&self, data: &[SmallData]) -> Vec<u8> {
-        let signature = <Vec<SmallData> as Type>::SIGNATURE;
-        to_bytes_for_signature(self.context, signature, &data.to_vec())
+        to_bytes(self.context, &data.to_vec())
             .unwrap()
             .to_vec()
     }
 
     pub fn decode_big(&self, bytes: &[u8]) -> Vec<BigData> {
-        let signature = <Vec<BigData> as Type>::SIGNATURE;
         let encoded = Data::new(bytes, self.context);
-        let (data, _): (Vec<BigData>, _) = encoded.deserialize_for_signature(signature).unwrap();
+        let (data, _): (Vec<BigData>, _) = encoded.deserialize().unwrap();
         data
     }
 
     pub fn decode_small(&self, bytes: &[u8]) -> Vec<SmallData> {
-        let signature = <Vec<SmallData> as Type>::SIGNATURE;
         let encoded = Data::new(bytes, self.context);
-        let (data, _): (Vec<SmallData>, _) = encoded.deserialize_for_signature(signature).unwrap();
+        let (data, _): (Vec<SmallData>, _) = encoded.deserialize().unwrap();
         data
     }
 }
