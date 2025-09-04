@@ -1,4 +1,5 @@
 use crate::data::{BigData, SmallData};
+use crate::vector_data::{BigVectorData, SmallVectorData};
 use serde::{Deserialize, Serialize};
 use zvariant::{
     serialized::{Context, Data},
@@ -30,6 +31,22 @@ impl Json {
     pub fn decode_small(bytes: &[u8]) -> Vec<SmallData> {
         serde_json::from_slice(bytes).unwrap()
     }
+
+    pub fn encode_big_vector(data: &[BigVectorData]) -> Vec<u8> {
+        serde_json::to_string(&data).unwrap().into_bytes()
+    }
+
+    pub fn encode_small_vector(data: &[SmallVectorData]) -> Vec<u8> {
+        serde_json::to_string(&data).unwrap().into_bytes()
+    }
+
+    pub fn decode_big_vector(bytes: &[u8]) -> Vec<BigVectorData> {
+        serde_json::from_slice(bytes).unwrap()
+    }
+
+    pub fn decode_small_vector(bytes: &[u8]) -> Vec<SmallVectorData> {
+        serde_json::from_slice(bytes).unwrap()
+    }
 }
 
 // SIMD-JSON format implementation
@@ -51,6 +68,22 @@ impl SimdJson {
     pub fn decode_small(mut bytes: &[u8]) -> Vec<SmallData> {
         simd_json::from_reader(&mut bytes).unwrap()
     }
+
+    pub fn encode_big_vector(data: &[BigVectorData]) -> Vec<u8> {
+        simd_json::to_string(&data).unwrap().into_bytes()
+    }
+
+    pub fn encode_small_vector(data: &[SmallVectorData]) -> Vec<u8> {
+        simd_json::to_string(&data).unwrap().into_bytes()
+    }
+
+    pub fn decode_big_vector(mut bytes: &[u8]) -> Vec<BigVectorData> {
+        simd_json::from_reader(&mut bytes).unwrap()
+    }
+
+    pub fn decode_small_vector(mut bytes: &[u8]) -> Vec<SmallVectorData> {
+        simd_json::from_reader(&mut bytes).unwrap()
+    }
 }
 
 // D-Bus format implementation
@@ -66,15 +99,11 @@ impl DBus {
     }
 
     pub fn encode_big(&self, data: &[BigData]) -> Vec<u8> {
-        to_bytes(self.context, &data.to_vec())
-            .unwrap()
-            .to_vec()
+        to_bytes(self.context, &data.to_vec()).unwrap().to_vec()
     }
 
     pub fn encode_small(&self, data: &[SmallData]) -> Vec<u8> {
-        to_bytes(self.context, &data.to_vec())
-            .unwrap()
-            .to_vec()
+        to_bytes(self.context, &data.to_vec()).unwrap().to_vec()
     }
 
     pub fn decode_big(&self, bytes: &[u8]) -> Vec<BigData> {
@@ -86,6 +115,26 @@ impl DBus {
     pub fn decode_small(&self, bytes: &[u8]) -> Vec<SmallData> {
         let encoded = Data::new(bytes, self.context);
         let (data, _): (Vec<SmallData>, _) = encoded.deserialize().unwrap();
+        data
+    }
+
+    pub fn encode_big_vector(&self, data: &[BigVectorData]) -> Vec<u8> {
+        to_bytes(self.context, &data.to_vec()).unwrap().to_vec()
+    }
+
+    pub fn encode_small_vector(&self, data: &[SmallVectorData]) -> Vec<u8> {
+        to_bytes(self.context, &data.to_vec()).unwrap().to_vec()
+    }
+
+    pub fn decode_big_vector(&self, bytes: &[u8]) -> Vec<BigVectorData> {
+        let encoded = Data::new(bytes, self.context);
+        let (data, _): (Vec<BigVectorData>, _) = encoded.deserialize().unwrap();
+        data
+    }
+
+    pub fn decode_small_vector(&self, bytes: &[u8]) -> Vec<SmallVectorData> {
+        let encoded = Data::new(bytes, self.context);
+        let (data, _): (Vec<SmallVectorData>, _) = encoded.deserialize().unwrap();
         data
     }
 }
@@ -117,6 +166,31 @@ impl Bson {
         let wrapper: BsonWrapper<SmallData> = bson::de::deserialize_from_slice(bytes).unwrap();
         wrapper.data
     }
+
+    pub fn encode_big_vector(data: &[BigVectorData]) -> Vec<u8> {
+        let wrapper = BsonWrapper {
+            data: data.to_vec(),
+        };
+        bson::ser::serialize_to_vec(&wrapper).unwrap()
+    }
+
+    pub fn encode_small_vector(data: &[SmallVectorData]) -> Vec<u8> {
+        let wrapper = BsonWrapper {
+            data: data.to_vec(),
+        };
+        bson::ser::serialize_to_vec(&wrapper).unwrap()
+    }
+
+    pub fn decode_big_vector(bytes: &[u8]) -> Vec<BigVectorData> {
+        let wrapper: BsonWrapper<BigVectorData> = bson::de::deserialize_from_slice(bytes).unwrap();
+        wrapper.data
+    }
+
+    pub fn decode_small_vector(bytes: &[u8]) -> Vec<SmallVectorData> {
+        let wrapper: BsonWrapper<SmallVectorData> =
+            bson::de::deserialize_from_slice(bytes).unwrap();
+        wrapper.data
+    }
 }
 
 // CBOR format implementation
@@ -140,6 +214,26 @@ impl Cbor {
     }
 
     pub fn decode_small(bytes: &[u8]) -> Vec<SmallData> {
+        ciborium::from_reader(&bytes[..]).unwrap()
+    }
+
+    pub fn encode_big_vector(data: &[BigVectorData]) -> Vec<u8> {
+        let mut encoded = Vec::new();
+        ciborium::into_writer(&data, &mut encoded).unwrap();
+        encoded
+    }
+
+    pub fn encode_small_vector(data: &[SmallVectorData]) -> Vec<u8> {
+        let mut encoded = Vec::new();
+        ciborium::into_writer(&data, &mut encoded).unwrap();
+        encoded
+    }
+
+    pub fn decode_big_vector(bytes: &[u8]) -> Vec<BigVectorData> {
+        ciborium::from_reader(&bytes[..]).unwrap()
+    }
+
+    pub fn decode_small_vector(bytes: &[u8]) -> Vec<SmallVectorData> {
         ciborium::from_reader(&bytes[..]).unwrap()
     }
 }
@@ -175,6 +269,26 @@ impl Bincode {
             bincode::serde::decode_from_slice(bytes, self.config).unwrap();
         decoded
     }
+
+    pub fn encode_big_vector(&self, data: &[BigVectorData]) -> Vec<u8> {
+        bincode::serde::encode_to_vec(&data, self.config).unwrap()
+    }
+
+    pub fn encode_small_vector(&self, data: &[SmallVectorData]) -> Vec<u8> {
+        bincode::serde::encode_to_vec(&data, self.config).unwrap()
+    }
+
+    pub fn decode_big_vector(&self, bytes: &[u8]) -> Vec<BigVectorData> {
+        let (decoded, _): (Vec<BigVectorData>, _) =
+            bincode::serde::decode_from_slice(bytes, self.config).unwrap();
+        decoded
+    }
+
+    pub fn decode_small_vector(&self, bytes: &[u8]) -> Vec<SmallVectorData> {
+        let (decoded, _): (Vec<SmallVectorData>, _) =
+            bincode::serde::decode_from_slice(bytes, self.config).unwrap();
+        decoded
+    }
 }
 
 // Bitcode format implementation
@@ -194,6 +308,22 @@ impl Bitcode {
     }
 
     pub fn decode_small(bytes: &[u8]) -> Vec<SmallData> {
+        bitcode::deserialize(bytes).unwrap()
+    }
+
+    pub fn encode_big_vector(data: &[BigVectorData]) -> Vec<u8> {
+        bitcode::serialize(&data).unwrap()
+    }
+
+    pub fn encode_small_vector(data: &[SmallVectorData]) -> Vec<u8> {
+        bitcode::serialize(&data).unwrap()
+    }
+
+    pub fn decode_big_vector(bytes: &[u8]) -> Vec<BigVectorData> {
+        bitcode::deserialize(bytes).unwrap()
+    }
+
+    pub fn decode_small_vector(bytes: &[u8]) -> Vec<SmallVectorData> {
         bitcode::deserialize(bytes).unwrap()
     }
 }
