@@ -327,3 +327,40 @@ impl Bitcode {
         bitcode::deserialize(bytes).unwrap()
     }
 }
+
+// Postcard format implementation
+pub struct Postcard;
+
+impl Postcard {
+    pub fn encode_big(data: &[BigData]) -> Vec<u8> {
+        postcard::to_allocvec(&data).unwrap()
+    }
+
+    pub fn encode_small(data: &[SmallData]) -> Vec<u8> {
+        postcard::to_allocvec(&data).unwrap()
+    }
+
+    pub fn decode_big(bytes: &[u8]) -> Vec<BigData> {
+        postcard::from_bytes(bytes).unwrap()
+    }
+
+    pub fn decode_small(bytes: &[u8]) -> Vec<SmallData> {
+        postcard::from_bytes(bytes).unwrap()
+    }
+
+    pub fn encode_big_vector(data: &[BigVectorData]) -> Vec<u8> {
+        postcard::to_allocvec(&data).unwrap()
+    }
+
+    pub fn encode_small_vector(data: &[SmallVectorData]) -> Vec<u8> {
+        postcard::to_allocvec(&data).unwrap()
+    }
+
+    pub fn decode_big_vector(bytes: &[u8]) -> Vec<BigVectorData> {
+        postcard::from_bytes(bytes).unwrap()
+    }
+
+    pub fn decode_small_vector(bytes: &[u8]) -> Vec<SmallVectorData> {
+        postcard::from_bytes(bytes).unwrap()
+    }
+}

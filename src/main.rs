@@ -38,6 +38,9 @@ fn main() {
     let bitcode_big = formats::Bitcode::encode_big(&big_data);
     let bitcode_small = formats::Bitcode::encode_small(&small_data);
 
+    let postcard_big = formats::Postcard::encode_big(&big_data);
+    let postcard_small = formats::Postcard::encode_small(&small_data);
+
     // Vector data benchmarks
     let big_vector_data = iter::repeat_with(BigVectorData::new)
         .take(10)
@@ -67,6 +70,9 @@ fn main() {
     let bitcode_big_vector = formats::Bitcode::encode_big_vector(&big_vector_data);
     let bitcode_small_vector = formats::Bitcode::encode_small_vector(&small_vector_data);
 
+    let postcard_big_vector = formats::Postcard::encode_big_vector(&big_vector_data);
+    let postcard_small_vector = formats::Postcard::encode_small_vector(&small_vector_data);
+
     // Display results in a table
     println!("## HashMap-based Data");
     println!();
@@ -81,6 +87,7 @@ fn main() {
     print_row("CBOR", cbor_big.len(), json_big.len());
     print_row("Bincode", bincode_big.len(), json_big.len());
     print_row("Bitcode", bitcode_big.len(), json_big.len());
+    print_row("Postcard", postcard_big.len(), json_big.len());
 
     println!();
     println!("### Small Payload (10 instances)");
@@ -94,6 +101,7 @@ fn main() {
     print_row("CBOR", cbor_small.len(), json_small.len());
     print_row("Bincode", bincode_small.len(), json_small.len());
     print_row("Bitcode", bitcode_small.len(), json_small.len());
+    print_row("Postcard", postcard_small.len(), json_small.len());
 
     println!();
     println!("## Vector-based Data (arrays of structs)");
@@ -113,6 +121,7 @@ fn main() {
     print_row("CBOR", cbor_big_vector.len(), json_big_vector.len());
     print_row("Bincode", bincode_big_vector.len(), json_big_vector.len());
     print_row("Bitcode", bitcode_big_vector.len(), json_big_vector.len());
+    print_row("Postcard", postcard_big_vector.len(), json_big_vector.len());
 
     println!();
     println!("### Small Vector Payload (10 instances)");
@@ -138,6 +147,11 @@ fn main() {
         bitcode_small_vector.len(),
         json_small_vector.len(),
     );
+    print_row(
+        "Postcard",
+        postcard_small_vector.len(),
+        json_small_vector.len(),
+    );
 
     println!();
     println!("## Summary");
@@ -157,6 +171,7 @@ fn main() {
         ("CBOR", cbor_big.len(), cbor_small.len()),
         ("Bincode", bincode_big.len(), bincode_small.len()),
         ("Bitcode", bitcode_big.len(), bitcode_small.len()),
+        ("Postcard", postcard_big.len(), postcard_small.len()),
     ];
 
     // Find the most compact format
@@ -203,6 +218,11 @@ fn main() {
             "Bitcode",
             bitcode_big_vector.len(),
             bitcode_small_vector.len(),
+        ),
+        (
+            "Postcard",
+            postcard_big_vector.len(),
+            postcard_small_vector.len(),
         ),
     ];
 

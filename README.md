@@ -31,6 +31,7 @@ The results on my machines (from one of the runs) are as follows for different f
 | CBOR      |  705.1   | 135.6      |
 | Bincode   |  305.0   |  57.3      |
 | Bitcode   |  265.7   |  54.4      |
+| Postcard  |  306.9   |  59.8      |
 
 ### Vector-based Data (arrays of structs)
 
@@ -42,6 +43,7 @@ The results on my machines (from one of the runs) are as follows for different f
 | CBOR      | 9814.0   | 516.2      |
 | Bincode   |  759.7   |  21.6      |
 | Bitcode   |  570.5   |  21.8      |
+| Postcard  |  787.9   |  24.8      |
 
 Not only YMMV, but also the results are not very consistent across runs. They depends a lot on the
 system load (which can fluctuate a lot). So it's best to run the benchmarks multiple times and take
@@ -54,13 +56,13 @@ the average.
 #### HashMap-based Data
 
 - Bitcode is the fastest, ~1.8x faster than JSON for big payloads.
-- Bincode shows ~1.6x performance advantage over JSON.
+- Bincode and Postcard show ~1.6x performance advantage over JSON.
 - D-Bus, BSON, and CBOR are actually slower than JSON for HashMap data.
 
 #### Vector-based Data
 
-- Bincode and Bitcode are dramatically faster (8-15x faster for big payloads).
-- For small vector payloads, binary formats are 15x faster than JSON.
+- Bitcode, Bincode, and Postcard are dramatically faster (7-10x faster for big payloads).
+- For small vector payloads, these binary formats are 13-15x faster than JSON.
 - D-Bus outperforms JSON for vector data.
 
 ### Size
@@ -71,14 +73,16 @@ The size comparison heavily depends on the data structure:
 
 - Binary formats now achieve significant size reduction (30-37% savings).
 - Bitcode is most compact at ~66% of JSON size.
-- BSON and D-Bus produce larger outputs than JSON (~121% and ~120% respectively).
-- CBOR achieves ~78% of JSON size.
+- Postcard achieves ~71% of JSON size.
 - Bincode achieves ~70% of JSON size.
+- CBOR achieves ~78% of JSON size.
+- BSON and D-Bus produce larger outputs than JSON (~121% and ~120% respectively).
 
 #### Vector-based Data (arrays of structs)
 
 - Binary formats achieve dramatic size reductions (up to 87% savings!).
 - Bitcode compresses to just 18.5% of JSON size for big payloads.
+- Postcard achieves 22.8% of JSON size.
 - Bincode achieves 24.2% of JSON size.
 - Even D-Bus achieves good compression at 40.4% of JSON size.
 - Binary formats excel when field names don't need to be repeated.

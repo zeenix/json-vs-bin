@@ -18,4 +18,5 @@ zvariant = "5.7.0"
 criterion = "0.7.0"
 bincode = { version = "2.0.1", features = ["serde"] }
 bitcode = { version = "0.6.7", features = ["serde"] }
+postcard = { version = "1.0.0", features = ["alloc"] }
 simd-json = "0.15.1"

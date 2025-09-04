@@ -24,13 +24,15 @@ criterion_group! {
         cbor,
         bincode,
         bitcode,
+        postcard,
         dbus_vector,
         json_vector,
         simd_json_vector,
         bson_vector,
         cbor_vector,
         bincode_vector,
-        bitcode_vector
+        bitcode_vector,
+        postcard_vector
 }
 criterion_main!(benches);
 
@@ -132,6 +134,20 @@ fn bitcode(c: &mut Criterion) {
     let enc_fn = |data: &Vec<SmallData>| formats::Bitcode::encode_small(black_box(data));
     let dec_fn = |bytes: &[u8]| formats::Bitcode::decode_small(bytes);
     bench_it(c, data, enc_fn, dec_fn, "bitcode_small");
+}
+
+fn postcard(c: &mut Criterion) {
+    let data = iter::repeat_with(BigData::new).take(10).collect::<Vec<_>>();
+    let enc_fn = |data: &Vec<BigData>| formats::Postcard::encode_big(black_box(data));
+    let dec_fn = |bytes: &[u8]| formats::Postcard::decode_big(bytes);
+    bench_it(c, data, enc_fn, dec_fn, "postcard_big");
+
+    let data = iter::repeat_with(SmallData::new)
+        .take(10)
+        .collect::<Vec<_>>();
+    let enc_fn = |data: &Vec<SmallData>| formats::Postcard::encode_small(black_box(data));
+    let dec_fn = |bytes: &[u8]| formats::Postcard::decode_small(bytes);
+    bench_it(c, data, enc_fn, dec_fn, "postcard_small");
 }
 
 fn dbus_vector(c: &mut Criterion) {
@@ -248,6 +264,23 @@ fn bitcode_vector(c: &mut Criterion) {
         |data: &Vec<SmallVectorData>| formats::Bitcode::encode_small_vector(black_box(data));
     let dec_fn = |bytes: &[u8]| formats::Bitcode::decode_small_vector(bytes);
     bench_it(c, data, enc_fn, dec_fn, "bitcode_small_vector");
+}
+
+fn postcard_vector(c: &mut Criterion) {
+    let data = iter::repeat_with(BigVectorData::new)
+        .take(10)
+        .collect::<Vec<_>>();
+    let enc_fn = |data: &Vec<BigVectorData>| formats::Postcard::encode_big_vector(black_box(data));
+    let dec_fn = |bytes: &[u8]| formats::Postcard::decode_big_vector(bytes);
+    bench_it(c, data, enc_fn, dec_fn, "postcard_big_vector");
+
+    let data = iter::repeat_with(SmallVectorData::new)
+        .take(10)
+        .collect::<Vec<_>>();
+    let enc_fn =
+        |data: &Vec<SmallVectorData>| formats::Postcard::encode_small_vector(black_box(data));
+    let dec_fn = |bytes: &[u8]| formats::Postcard::decode_small_vector(bytes);
+    bench_it(c, data, enc_fn, dec_fn, "postcard_small_vector");
 }
 
 // Data structures removed - now using shared library from json_vs_bin crate
