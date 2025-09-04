@@ -1,10 +1,5 @@
 /// This benchmark is to compare the performance of JSON and a few binary formats.
-///
-/// TODO:
-/// * Also, benchmark with tokio tasks instead of threads.
-use std::{
-    collections::HashMap, iter, mem::swap, sync::mpsc::channel, thread::available_parallelism,
-};
+use std::{collections::HashMap, iter};
 
 use serde::{de::DeserializeOwned, Deserialize, Serialize};
 
@@ -295,106 +290,13 @@ fn bench_it<D, EncFn, DecFn>(
     EncFn: Fn(&D) -> Vec<u8>,
     DecFn: Fn(&[u8]) -> D,
 {
-    let mut group = c.benchmark_group("no_context_switching");
+    let mut group = c.benchmark_group("encoding_decoding");
     group.measurement_time(std::time::Duration::from_secs(20));
     group.bench_function(bench_name, |b| {
         b.iter(|| {
             let encoded = enc_fn(black_box(&data));
-            // We only want to compare the diff of context switching, and not the data cloning.
-            for _ in 0..parallelism() {
-                let copy = encoded.clone();
-                black_box(copy);
-            }
             let data: D = dec_fn(&encoded);
             black_box(data);
         })
     });
-    drop(group);
-
-    let (first_tx, last_rx) = setup_channels_and_threads();
-
-    let mut group = c.benchmark_group("high_context_switching_threads");
-    group.measurement_time(std::time::Duration::from_secs(20));
-    group.bench_function(bench_name, |b| {
-        b.iter(|| {
-            let encoded = enc_fn(black_box(&data));
-            first_tx.send(encoded.to_vec()).unwrap();
-
-            let encoded = last_rx.recv().unwrap();
-            let data: D = dec_fn(&encoded);
-            black_box(data);
-        })
-    });
-    drop(group);
-
-    let rt = tokio::runtime::Runtime::new().unwrap();
-    let (first_tx, mut last_rx) = setup_channels_and_tokio(&rt);
-    let mut group = c.benchmark_group("high_context_switching_tasks");
-    group.measurement_time(std::time::Duration::from_secs(20));
-    group.bench_function(bench_name, |b| {
-        b.iter(|| {
-            rt.block_on(async {
-                let encoded = enc_fn(black_box(&data));
-                first_tx.send(encoded.to_vec()).await.unwrap();
-
-                let encoded = last_rx.recv().await.unwrap();
-                let data: D = dec_fn(&encoded);
-                black_box(data);
-            })
-        })
-    });
 }
-
-fn setup_channels_and_threads() -> (
-    std::sync::mpsc::Sender<Vec<u8>>,
-    std::sync::mpsc::Receiver<Vec<u8>>,
-) {
-    // Create 8 threads and channels, with main thread receiving back what it sends to the first
-    // channel, from the last channel in the chain.
-    let (first_tx, mut last_rx) = channel();
-    for _ in 0..parallelism() {
-        let (tx, mut rx) = channel();
-        swap(&mut last_rx, &mut rx);
-        std::thread::spawn(move || loop {
-            let msg = match rx.recv() {
-                Ok(msg) => msg,
-                Err(_) => break,
-            };
-            tx.send(msg).unwrap();
-        });
-    }
-
-    (first_tx, last_rx)
-}
-
-fn setup_channels_and_tokio(
-    rt: &tokio::runtime::Runtime,
-) -> (
-    tokio::sync::mpsc::Sender<Vec<u8>>,
-    tokio::sync::mpsc::Receiver<Vec<u8>>,
-) {
-    let (first_tx, mut last_rx) = tokio::sync::mpsc::channel(1);
-    for _ in 0..parallelism() {
-        let (tx, mut rx) = tokio::sync::mpsc::channel(1);
-        swap(&mut last_rx, &mut rx);
-        rt.spawn(async move {
-            loop {
-                let msg = match rx.recv().await {
-                    Some(msg) => msg,
-                    None => break,
-                };
-                tx.send(msg).await.unwrap();
-            }
-        });
-    }
-
-    (first_tx, last_rx)
-}
-
-fn parallelism() -> usize {
-    available_parallelism()
-        .map(Into::into)
-        .unwrap_or(DEFAULT_PARALLELISM)
-}
-
-const DEFAULT_PARALLELISM: usize = 8;
