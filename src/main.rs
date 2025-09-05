@@ -22,14 +22,15 @@ fn main() {
     let simd_json_small = formats::SimdJson::encode_small(&small_data);
 
     let dbus = formats::DBus::new();
-    let dbus_big = dbus.encode_big(&big_data);
-    let dbus_small = dbus.encode_small(&small_data);
+    let dbus_big_data = dbus.encode_big(&big_data);
+    let dbus_small_data = dbus.encode_small(&small_data);
+    let dbus_big = dbus_big_data.bytes().to_vec();
+    let dbus_small = dbus_small_data.bytes().to_vec();
 
     let bson_big = formats::Bson::encode_big(&big_data);
     let bson_small = formats::Bson::encode_small(&small_data);
 
-    let cbor_big = formats::Cbor::encode_big(&big_data);
-    let cbor_small = formats::Cbor::encode_small(&small_data);
+    // CBOR removed - ciborium has serde trait limitations with &str fields
 
     let bincode = formats::Bincode::new();
     let bincode_big = bincode.encode_big(&big_data);
@@ -55,14 +56,15 @@ fn main() {
     let simd_json_big_vector = formats::SimdJson::encode_big_vector(&big_vector_data);
     let simd_json_small_vector = formats::SimdJson::encode_small_vector(&small_vector_data);
 
-    let dbus_big_vector = dbus.encode_big_vector(&big_vector_data);
-    let dbus_small_vector = dbus.encode_small_vector(&small_vector_data);
+    let dbus_big_vector_data = dbus.encode_big_vector(&big_vector_data);
+    let dbus_small_vector_data = dbus.encode_small_vector(&small_vector_data);
+    let dbus_big_vector = dbus_big_vector_data.bytes().to_vec();
+    let dbus_small_vector = dbus_small_vector_data.bytes().to_vec();
 
     let bson_big_vector = formats::Bson::encode_big_vector(&big_vector_data);
     let bson_small_vector = formats::Bson::encode_small_vector(&small_vector_data);
 
-    let cbor_big_vector = formats::Cbor::encode_big_vector(&big_vector_data);
-    let cbor_small_vector = formats::Cbor::encode_small_vector(&small_vector_data);
+    // CBOR removed - ciborium has serde trait limitations with &str fields
 
     let bincode_big_vector = bincode.encode_big_vector(&big_vector_data);
     let bincode_small_vector = bincode.encode_small_vector(&small_vector_data);
@@ -84,7 +86,7 @@ fn main() {
     print_row("SIMD-JSON", simd_json_big.len(), json_big.len());
     print_row("D-Bus", dbus_big.len(), json_big.len());
     print_row("BSON", bson_big.len(), json_big.len());
-    print_row("CBOR", cbor_big.len(), json_big.len());
+    // CBOR removed
     print_row("Bincode", bincode_big.len(), json_big.len());
     print_row("Bitcode", bitcode_big.len(), json_big.len());
     print_row("Postcard", postcard_big.len(), json_big.len());
@@ -98,7 +100,7 @@ fn main() {
     print_row("SIMD-JSON", simd_json_small.len(), json_small.len());
     print_row("D-Bus", dbus_small.len(), json_small.len());
     print_row("BSON", bson_small.len(), json_small.len());
-    print_row("CBOR", cbor_small.len(), json_small.len());
+    // CBOR removed
     print_row("Bincode", bincode_small.len(), json_small.len());
     print_row("Bitcode", bitcode_small.len(), json_small.len());
     print_row("Postcard", postcard_small.len(), json_small.len());
@@ -118,7 +120,7 @@ fn main() {
     );
     print_row("D-Bus", dbus_big_vector.len(), json_big_vector.len());
     print_row("BSON", bson_big_vector.len(), json_big_vector.len());
-    print_row("CBOR", cbor_big_vector.len(), json_big_vector.len());
+    // CBOR removed
     print_row("Bincode", bincode_big_vector.len(), json_big_vector.len());
     print_row("Bitcode", bitcode_big_vector.len(), json_big_vector.len());
     print_row("Postcard", postcard_big_vector.len(), json_big_vector.len());
@@ -136,7 +138,7 @@ fn main() {
     );
     print_row("D-Bus", dbus_small_vector.len(), json_small_vector.len());
     print_row("BSON", bson_small_vector.len(), json_small_vector.len());
-    print_row("CBOR", cbor_small_vector.len(), json_small_vector.len());
+    // CBOR removed
     print_row(
         "Bincode",
         bincode_small_vector.len(),
@@ -168,7 +170,7 @@ fn main() {
         ("SIMD-JSON", simd_json_big.len(), simd_json_small.len()),
         ("D-Bus", dbus_big.len(), dbus_small.len()),
         ("BSON", bson_big.len(), bson_small.len()),
-        ("CBOR", cbor_big.len(), cbor_small.len()),
+        // CBOR removed
         ("Bincode", bincode_big.len(), bincode_small.len()),
         ("Bitcode", bitcode_big.len(), bitcode_small.len()),
         ("Postcard", postcard_big.len(), postcard_small.len()),
@@ -208,7 +210,7 @@ fn main() {
         ),
         ("D-Bus", dbus_big_vector.len(), dbus_small_vector.len()),
         ("BSON", bson_big_vector.len(), bson_small_vector.len()),
-        ("CBOR", cbor_big_vector.len(), cbor_small_vector.len()),
+        // CBOR removed
         (
             "Bincode",
             bincode_big_vector.len(),

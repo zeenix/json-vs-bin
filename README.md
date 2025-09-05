@@ -25,25 +25,23 @@ The results on my machines (from one of the runs) are as follows for different f
 
 | Format    | Big (µs) | Small (µs) |
 | --------- | -------- | ---------- |
-| JSON      |  492.8   |  88.6      |
-| D-Bus     |  666.8   | 135.6      |
-| BSON      |  714.3   | 139.3      |
-| CBOR      |  705.1   | 135.6      |
-| Bincode   |  305.0   |  57.3      |
-| Bitcode   |  265.7   |  54.4      |
-| Postcard  |  306.9   |  59.8      |
+| JSON      |  340.2   |  59.2      |
+| D-Bus     |  399.1   |  78.6      |
+| BSON      |  432.8   |  83.0      |
+| Bincode   |  156.1   |  27.4      |
+| Bitcode   |  116.5   |  22.6      |
+| Postcard  |  179.4   |  34.4      |
 
 ### Vector-based Data (arrays of structs)
 
 | Format    | Big (µs) | Small (µs) |
 | --------- | -------- | ---------- |
-| JSON      | 6039.2   | 328.2      |
-| D-Bus     | 4242.5   | 179.4      |
-| BSON      | 7943.4   | 420.5      |
-| CBOR      | 9814.0   | 516.2      |
-| Bincode   |  759.7   |  21.6      |
-| Bitcode   |  570.5   |  21.8      |
-| Postcard  |  787.9   |  24.8      |
+| JSON      | 5690.3   | 317.9      |
+| D-Bus     | 3649.8   | 180.5      |
+| BSON      | 7443.1   | 418.9      |
+| Bincode   |  459.4   |  20.5      |
+| Bitcode   |  360.2   |  22.1      |
+| Postcard  |  577.9   |  24.6      |
 
 Not only YMMV, but also the results are not very consistent across runs. They depends a lot on the
 system load (which can fluctuate a lot). So it's best to run the benchmarks multiple times and take
@@ -55,15 +53,16 @@ the average.
 
 #### HashMap-based Data
 
-- Bitcode is the fastest, ~1.8x faster than JSON for big payloads.
-- Bincode and Postcard show ~1.6x performance advantage over JSON.
-- D-Bus, BSON, and CBOR are actually slower than JSON for HashMap data.
+- Bitcode is the fastest, ~2.9x faster than JSON for big payloads.
+- Bincode shows ~2.2x performance advantage over JSON.
+- Postcard shows ~1.9x performance advantage over JSON.
+- D-Bus and BSON are slower than JSON for HashMap data.
 
 #### Vector-based Data
 
-- Bitcode, Bincode, and Postcard are dramatically faster (7-10x faster for big payloads).
-- For small vector payloads, these binary formats are 13-15x faster than JSON.
-- D-Bus outperforms JSON for vector data.
+- Bitcode, Bincode, and Postcard are dramatically faster (10-16x faster for big payloads).
+- For small vector payloads, these binary formats are 14-15x faster than JSON.
+- D-Bus outperforms JSON by ~1.6x for vector data.
 
 ### Size
 
@@ -73,9 +72,8 @@ The size comparison heavily depends on the data structure:
 
 - Binary formats now achieve significant size reduction (30-37% savings).
 - Bitcode is most compact at ~66% of JSON size.
-- Postcard achieves ~71% of JSON size.
 - Bincode achieves ~70% of JSON size.
-- CBOR achieves ~78% of JSON size.
+- Postcard achieves ~71% of JSON size.
 - BSON and D-Bus produce larger outputs than JSON (~121% and ~120% respectively).
 
 #### Vector-based Data (arrays of structs)

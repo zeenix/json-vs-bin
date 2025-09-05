@@ -1,8 +1,6 @@
 /// This benchmark is to compare the performance of JSON and a few binary formats.
 use std::iter;
 
-use serde::{de::DeserializeOwned, Serialize};
-
 use criterion::{criterion_group, criterion_main, Criterion};
 use std::hint::black_box;
 
@@ -21,7 +19,6 @@ criterion_group! {
         json,
         simd_json,
         bson,
-        cbor,
         bincode,
         bitcode,
         postcard,
@@ -29,7 +26,6 @@ criterion_group! {
         json_vector,
         simd_json_vector,
         bson_vector,
-        cbor_vector,
         bincode_vector,
         bitcode_vector,
         postcard_vector
@@ -39,115 +35,203 @@ criterion_main!(benches);
 fn dbus(c: &mut Criterion) {
     let dbus = formats::DBus::new();
     let data = iter::repeat_with(BigData::new).take(10).collect::<Vec<_>>();
-    let enc_fn = |data: &Vec<BigData>| dbus.encode_big(black_box(data));
-    let dec_fn = |bytes: &[u8]| dbus.decode_big(bytes);
-    bench_it(c, data, enc_fn, dec_fn, "dbus_big");
+
+    let mut group = c.benchmark_group("dbus");
+    group.bench_function("big", |b| {
+        b.iter(|| {
+            let encoded = dbus.encode_big(black_box(&data));
+            let decoded = dbus.decode_big(black_box(&encoded));
+            black_box(decoded);
+        })
+    });
+    group.finish();
 
     let data = iter::repeat_with(SmallData::new)
         .take(10)
         .collect::<Vec<_>>();
-    let enc_fn = |data: &Vec<SmallData>| dbus.encode_small(black_box(data));
-    let dec_fn = |bytes: &[u8]| dbus.decode_small(bytes);
-    bench_it(c, data, enc_fn, dec_fn, "dbus_small");
+
+    let mut group = c.benchmark_group("dbus");
+    group.bench_function("small", |b| {
+        b.iter(|| {
+            let encoded = dbus.encode_small(black_box(&data));
+            let decoded = dbus.decode_small(black_box(&encoded));
+            black_box(decoded);
+        })
+    });
+    group.finish();
 }
 
 fn json(c: &mut Criterion) {
     let data = iter::repeat_with(BigData::new).take(10).collect::<Vec<_>>();
-    let enc_fn = |data: &Vec<BigData>| formats::Json::encode_big(black_box(data));
-    let dec_fn = |bytes: &[u8]| formats::Json::decode_big(bytes);
-    bench_it(c, data, enc_fn, dec_fn, "json_big");
+
+    let mut group = c.benchmark_group("json");
+    group.bench_function("big", |b| {
+        b.iter(|| {
+            let encoded = formats::Json::encode_big(black_box(&data));
+            let decoded = formats::Json::decode_big(black_box(&encoded));
+            black_box(decoded);
+        })
+    });
+    group.finish();
 
     let data = iter::repeat_with(SmallData::new)
         .take(10)
         .collect::<Vec<_>>();
-    let enc_fn = |data: &Vec<SmallData>| formats::Json::encode_small(black_box(data));
-    let dec_fn = |bytes: &[u8]| formats::Json::decode_small(bytes);
-    bench_it(c, data, enc_fn, dec_fn, "json_small");
+
+    let mut group = c.benchmark_group("json");
+    group.bench_function("small", |b| {
+        b.iter(|| {
+            let encoded = formats::Json::encode_small(black_box(&data));
+            let decoded = formats::Json::decode_small(black_box(&encoded));
+            black_box(decoded);
+        })
+    });
+    group.finish();
 }
 
 fn simd_json(c: &mut Criterion) {
     let data = iter::repeat_with(BigData::new).take(10).collect::<Vec<_>>();
-    let enc_fn = |data: &Vec<BigData>| formats::SimdJson::encode_big(black_box(data));
-    let dec_fn = |bytes: &[u8]| formats::SimdJson::decode_big(bytes);
-    bench_it(c, data, enc_fn, dec_fn, "simd_json_big");
+
+    let mut group = c.benchmark_group("simd_json");
+    group.bench_function("big", |b| {
+        b.iter(|| {
+            let encoded = formats::SimdJson::encode_big(black_box(&data));
+            let mut buf = encoded.clone();
+            let decoded = formats::SimdJson::decode_big(black_box(&mut buf));
+            black_box(decoded);
+        })
+    });
+    group.finish();
 
     let data = iter::repeat_with(SmallData::new)
         .take(10)
         .collect::<Vec<_>>();
-    let enc_fn = |data: &Vec<SmallData>| formats::SimdJson::encode_small(black_box(data));
-    let dec_fn = |bytes: &[u8]| formats::SimdJson::decode_small(bytes);
-    bench_it(c, data, enc_fn, dec_fn, "simd_json_small");
+
+    let mut group = c.benchmark_group("simd_json");
+    group.bench_function("small", |b| {
+        b.iter(|| {
+            let encoded = formats::SimdJson::encode_small(black_box(&data));
+            let mut buf = encoded.clone();
+            let decoded = formats::SimdJson::decode_small(black_box(&mut buf));
+            black_box(decoded);
+        })
+    });
+    group.finish();
 }
 
 fn bson(c: &mut Criterion) {
     let data = iter::repeat_with(BigData::new).take(10).collect::<Vec<_>>();
-    let enc_fn = |data: &Vec<BigData>| formats::Bson::encode_big(black_box(data));
-    let dec_fn = |bytes: &[u8]| formats::Bson::decode_big(bytes);
-    bench_it(c, data, enc_fn, dec_fn, "bson_big");
+
+    let mut group = c.benchmark_group("bson");
+    group.bench_function("big", |b| {
+        b.iter(|| {
+            let encoded = formats::Bson::encode_big(black_box(&data));
+            let decoded = formats::Bson::decode_big(black_box(&encoded));
+            black_box(decoded);
+        })
+    });
+    group.finish();
 
     let data = iter::repeat_with(SmallData::new)
         .take(10)
         .collect::<Vec<_>>();
-    let enc_fn = |data: &Vec<SmallData>| formats::Bson::encode_small(black_box(data));
-    let dec_fn = |bytes: &[u8]| formats::Bson::decode_small(bytes);
-    bench_it(c, data, enc_fn, dec_fn, "bson_small");
+
+    let mut group = c.benchmark_group("bson");
+    group.bench_function("small", |b| {
+        b.iter(|| {
+            let encoded = formats::Bson::encode_small(black_box(&data));
+            let decoded = formats::Bson::decode_small(black_box(&encoded));
+            black_box(decoded);
+        })
+    });
+    group.finish();
 }
 
-fn cbor(c: &mut Criterion) {
-    let data = iter::repeat_with(BigData::new).take(10).collect::<Vec<_>>();
-    let enc_fn = |data: &Vec<BigData>| formats::Cbor::encode_big(black_box(data));
-    let dec_fn = |bytes: &[u8]| formats::Cbor::decode_big(bytes);
-    bench_it(c, data, enc_fn, dec_fn, "cbor_big");
-
-    let data = iter::repeat_with(SmallData::new)
-        .take(10)
-        .collect::<Vec<_>>();
-    let enc_fn = |data: &Vec<SmallData>| formats::Cbor::encode_small(black_box(data));
-    let dec_fn = |bytes: &[u8]| formats::Cbor::decode_small(bytes);
-    bench_it(c, data, enc_fn, dec_fn, "cbor_small");
-}
+// CBOR removed - ciborium has serde trait limitations with &str fields
 
 fn bincode(c: &mut Criterion) {
     let bincode = formats::Bincode::new();
     let data = iter::repeat_with(BigData::new).take(10).collect::<Vec<_>>();
-    let enc_fn = |data: &Vec<BigData>| bincode.encode_big(black_box(data));
-    let dec_fn = |bytes: &[u8]| bincode.decode_big(bytes);
-    bench_it(c, data, enc_fn, dec_fn, "bincode_big");
+
+    let mut group = c.benchmark_group("bincode");
+    group.bench_function("big", |b| {
+        b.iter(|| {
+            let encoded = bincode.encode_big(black_box(&data));
+            let decoded = bincode.decode_big(black_box(&encoded));
+            black_box(decoded);
+        })
+    });
+    group.finish();
 
     let data = iter::repeat_with(SmallData::new)
         .take(10)
         .collect::<Vec<_>>();
-    let enc_fn = |data: &Vec<SmallData>| bincode.encode_small(black_box(data));
-    let dec_fn = |bytes: &[u8]| bincode.decode_small(bytes);
-    bench_it(c, data, enc_fn, dec_fn, "bincode_small");
+
+    let mut group = c.benchmark_group("bincode");
+    group.bench_function("small", |b| {
+        b.iter(|| {
+            let encoded = bincode.encode_small(black_box(&data));
+            let decoded = bincode.decode_small(black_box(&encoded));
+            black_box(decoded);
+        })
+    });
+    group.finish();
 }
 
 fn bitcode(c: &mut Criterion) {
     let data = iter::repeat_with(BigData::new).take(10).collect::<Vec<_>>();
-    let enc_fn = |data: &Vec<BigData>| formats::Bitcode::encode_big(black_box(data));
-    let dec_fn = |bytes: &[u8]| formats::Bitcode::decode_big(bytes);
-    bench_it(c, data, enc_fn, dec_fn, "bitcode_big");
+
+    let mut group = c.benchmark_group("bitcode");
+    group.bench_function("big", |b| {
+        b.iter(|| {
+            let encoded = formats::Bitcode::encode_big(black_box(&data));
+            let decoded = formats::Bitcode::decode_big(black_box(&encoded));
+            black_box(decoded);
+        })
+    });
+    group.finish();
 
     let data = iter::repeat_with(SmallData::new)
         .take(10)
         .collect::<Vec<_>>();
-    let enc_fn = |data: &Vec<SmallData>| formats::Bitcode::encode_small(black_box(data));
-    let dec_fn = |bytes: &[u8]| formats::Bitcode::decode_small(bytes);
-    bench_it(c, data, enc_fn, dec_fn, "bitcode_small");
+
+    let mut group = c.benchmark_group("bitcode");
+    group.bench_function("small", |b| {
+        b.iter(|| {
+            let encoded = formats::Bitcode::encode_small(black_box(&data));
+            let decoded = formats::Bitcode::decode_small(black_box(&encoded));
+            black_box(decoded);
+        })
+    });
+    group.finish();
 }
 
 fn postcard(c: &mut Criterion) {
     let data = iter::repeat_with(BigData::new).take(10).collect::<Vec<_>>();
-    let enc_fn = |data: &Vec<BigData>| formats::Postcard::encode_big(black_box(data));
-    let dec_fn = |bytes: &[u8]| formats::Postcard::decode_big(bytes);
-    bench_it(c, data, enc_fn, dec_fn, "postcard_big");
+
+    let mut group = c.benchmark_group("postcard");
+    group.bench_function("big", |b| {
+        b.iter(|| {
+            let encoded = formats::Postcard::encode_big(black_box(&data));
+            let decoded = formats::Postcard::decode_big(black_box(&encoded));
+            black_box(decoded);
+        })
+    });
+    group.finish();
 
     let data = iter::repeat_with(SmallData::new)
         .take(10)
         .collect::<Vec<_>>();
-    let enc_fn = |data: &Vec<SmallData>| formats::Postcard::encode_small(black_box(data));
-    let dec_fn = |bytes: &[u8]| formats::Postcard::decode_small(bytes);
-    bench_it(c, data, enc_fn, dec_fn, "postcard_small");
+
+    let mut group = c.benchmark_group("postcard");
+    group.bench_function("small", |b| {
+        b.iter(|| {
+            let encoded = formats::Postcard::encode_small(black_box(&data));
+            let decoded = formats::Postcard::decode_small(black_box(&encoded));
+            black_box(decoded);
+        })
+    });
+    group.finish();
 }
 
 fn dbus_vector(c: &mut Criterion) {
@@ -155,152 +239,213 @@ fn dbus_vector(c: &mut Criterion) {
     let data = iter::repeat_with(BigVectorData::new)
         .take(10)
         .collect::<Vec<_>>();
-    let enc_fn = |data: &Vec<BigVectorData>| dbus.encode_big_vector(black_box(data));
-    let dec_fn = |bytes: &[u8]| dbus.decode_big_vector(bytes);
-    bench_it(c, data, enc_fn, dec_fn, "dbus_big_vector");
+
+    let mut group = c.benchmark_group("dbus_vector");
+    group.bench_function("big", |b| {
+        b.iter(|| {
+            let encoded = dbus.encode_big_vector(black_box(&data));
+            let decoded = dbus.decode_big_vector(black_box(&encoded));
+            black_box(decoded);
+        })
+    });
+    group.finish();
 
     let data = iter::repeat_with(SmallVectorData::new)
         .take(10)
         .collect::<Vec<_>>();
-    let enc_fn = |data: &Vec<SmallVectorData>| dbus.encode_small_vector(black_box(data));
-    let dec_fn = |bytes: &[u8]| dbus.decode_small_vector(bytes);
-    bench_it(c, data, enc_fn, dec_fn, "dbus_small_vector");
+
+    let mut group = c.benchmark_group("dbus_vector");
+    group.bench_function("small", |b| {
+        b.iter(|| {
+            let encoded = dbus.encode_small_vector(black_box(&data));
+            let decoded = dbus.decode_small_vector(black_box(&encoded));
+            black_box(decoded);
+        })
+    });
+    group.finish();
 }
 
 fn json_vector(c: &mut Criterion) {
     let data = iter::repeat_with(BigVectorData::new)
         .take(10)
         .collect::<Vec<_>>();
-    let enc_fn = |data: &Vec<BigVectorData>| formats::Json::encode_big_vector(black_box(data));
-    let dec_fn = |bytes: &[u8]| formats::Json::decode_big_vector(bytes);
-    bench_it(c, data, enc_fn, dec_fn, "json_big_vector");
+
+    let mut group = c.benchmark_group("json_vector");
+    group.bench_function("big", |b| {
+        b.iter(|| {
+            let encoded = formats::Json::encode_big_vector(black_box(&data));
+            let decoded = formats::Json::decode_big_vector(black_box(&encoded));
+            black_box(decoded);
+        })
+    });
+    group.finish();
 
     let data = iter::repeat_with(SmallVectorData::new)
         .take(10)
         .collect::<Vec<_>>();
-    let enc_fn = |data: &Vec<SmallVectorData>| formats::Json::encode_small_vector(black_box(data));
-    let dec_fn = |bytes: &[u8]| formats::Json::decode_small_vector(bytes);
-    bench_it(c, data, enc_fn, dec_fn, "json_small_vector");
+
+    let mut group = c.benchmark_group("json_vector");
+    group.bench_function("small", |b| {
+        b.iter(|| {
+            let encoded = formats::Json::encode_small_vector(black_box(&data));
+            let decoded = formats::Json::decode_small_vector(black_box(&encoded));
+            black_box(decoded);
+        })
+    });
+    group.finish();
 }
 
 fn simd_json_vector(c: &mut Criterion) {
     let data = iter::repeat_with(BigVectorData::new)
         .take(10)
         .collect::<Vec<_>>();
-    let enc_fn = |data: &Vec<BigVectorData>| formats::SimdJson::encode_big_vector(black_box(data));
-    let dec_fn = |bytes: &[u8]| formats::SimdJson::decode_big_vector(bytes);
-    bench_it(c, data, enc_fn, dec_fn, "simd_json_big_vector");
+
+    let mut group = c.benchmark_group("simd_json_vector");
+    group.bench_function("big", |b| {
+        b.iter(|| {
+            let encoded = formats::SimdJson::encode_big_vector(black_box(&data));
+            let mut buf = encoded.clone();
+            let decoded = formats::SimdJson::decode_big_vector(black_box(&mut buf));
+            black_box(decoded);
+        })
+    });
+    group.finish();
 
     let data = iter::repeat_with(SmallVectorData::new)
         .take(10)
         .collect::<Vec<_>>();
-    let enc_fn =
-        |data: &Vec<SmallVectorData>| formats::SimdJson::encode_small_vector(black_box(data));
-    let dec_fn = |bytes: &[u8]| formats::SimdJson::decode_small_vector(bytes);
-    bench_it(c, data, enc_fn, dec_fn, "simd_json_small_vector");
+
+    let mut group = c.benchmark_group("simd_json_vector");
+    group.bench_function("small", |b| {
+        b.iter(|| {
+            let encoded = formats::SimdJson::encode_small_vector(black_box(&data));
+            let mut buf = encoded.clone();
+            let decoded = formats::SimdJson::decode_small_vector(black_box(&mut buf));
+            black_box(decoded);
+        })
+    });
+    group.finish();
 }
 
 fn bson_vector(c: &mut Criterion) {
     let data = iter::repeat_with(BigVectorData::new)
         .take(10)
         .collect::<Vec<_>>();
-    let enc_fn = |data: &Vec<BigVectorData>| formats::Bson::encode_big_vector(black_box(data));
-    let dec_fn = |bytes: &[u8]| formats::Bson::decode_big_vector(bytes);
-    bench_it(c, data, enc_fn, dec_fn, "bson_big_vector");
+
+    let mut group = c.benchmark_group("bson_vector");
+    group.bench_function("big", |b| {
+        b.iter(|| {
+            let encoded = formats::Bson::encode_big_vector(black_box(&data));
+            let decoded = formats::Bson::decode_big_vector(black_box(&encoded));
+            black_box(decoded);
+        })
+    });
+    group.finish();
 
     let data = iter::repeat_with(SmallVectorData::new)
         .take(10)
         .collect::<Vec<_>>();
-    let enc_fn = |data: &Vec<SmallVectorData>| formats::Bson::encode_small_vector(black_box(data));
-    let dec_fn = |bytes: &[u8]| formats::Bson::decode_small_vector(bytes);
-    bench_it(c, data, enc_fn, dec_fn, "bson_small_vector");
+
+    let mut group = c.benchmark_group("bson_vector");
+    group.bench_function("small", |b| {
+        b.iter(|| {
+            let encoded = formats::Bson::encode_small_vector(black_box(&data));
+            let decoded = formats::Bson::decode_small_vector(black_box(&encoded));
+            black_box(decoded);
+        })
+    });
+    group.finish();
 }
 
-fn cbor_vector(c: &mut Criterion) {
-    let data = iter::repeat_with(BigVectorData::new)
-        .take(10)
-        .collect::<Vec<_>>();
-    let enc_fn = |data: &Vec<BigVectorData>| formats::Cbor::encode_big_vector(black_box(data));
-    let dec_fn = |bytes: &[u8]| formats::Cbor::decode_big_vector(bytes);
-    bench_it(c, data, enc_fn, dec_fn, "cbor_big_vector");
-
-    let data = iter::repeat_with(SmallVectorData::new)
-        .take(10)
-        .collect::<Vec<_>>();
-    let enc_fn = |data: &Vec<SmallVectorData>| formats::Cbor::encode_small_vector(black_box(data));
-    let dec_fn = |bytes: &[u8]| formats::Cbor::decode_small_vector(bytes);
-    bench_it(c, data, enc_fn, dec_fn, "cbor_small_vector");
-}
+// CBOR vector removed - ciborium has serde trait limitations with &str fields
 
 fn bincode_vector(c: &mut Criterion) {
     let bincode = formats::Bincode::new();
     let data = iter::repeat_with(BigVectorData::new)
         .take(10)
         .collect::<Vec<_>>();
-    let enc_fn = |data: &Vec<BigVectorData>| bincode.encode_big_vector(black_box(data));
-    let dec_fn = |bytes: &[u8]| bincode.decode_big_vector(bytes);
-    bench_it(c, data, enc_fn, dec_fn, "bincode_big_vector");
+
+    let mut group = c.benchmark_group("bincode_vector");
+    group.bench_function("big", |b| {
+        b.iter(|| {
+            let encoded = bincode.encode_big_vector(black_box(&data));
+            let decoded = bincode.decode_big_vector(black_box(&encoded));
+            black_box(decoded);
+        })
+    });
+    group.finish();
 
     let data = iter::repeat_with(SmallVectorData::new)
         .take(10)
         .collect::<Vec<_>>();
-    let enc_fn = |data: &Vec<SmallVectorData>| bincode.encode_small_vector(black_box(data));
-    let dec_fn = |bytes: &[u8]| bincode.decode_small_vector(bytes);
-    bench_it(c, data, enc_fn, dec_fn, "bincode_small_vector");
+
+    let mut group = c.benchmark_group("bincode_vector");
+    group.bench_function("small", |b| {
+        b.iter(|| {
+            let encoded = bincode.encode_small_vector(black_box(&data));
+            let decoded = bincode.decode_small_vector(black_box(&encoded));
+            black_box(decoded);
+        })
+    });
+    group.finish();
 }
 
 fn bitcode_vector(c: &mut Criterion) {
     let data = iter::repeat_with(BigVectorData::new)
         .take(10)
         .collect::<Vec<_>>();
-    let enc_fn = |data: &Vec<BigVectorData>| formats::Bitcode::encode_big_vector(black_box(data));
-    let dec_fn = |bytes: &[u8]| formats::Bitcode::decode_big_vector(bytes);
-    bench_it(c, data, enc_fn, dec_fn, "bitcode_big_vector");
+
+    let mut group = c.benchmark_group("bitcode_vector");
+    group.bench_function("big", |b| {
+        b.iter(|| {
+            let encoded = formats::Bitcode::encode_big_vector(black_box(&data));
+            let decoded = formats::Bitcode::decode_big_vector(black_box(&encoded));
+            black_box(decoded);
+        })
+    });
+    group.finish();
 
     let data = iter::repeat_with(SmallVectorData::new)
         .take(10)
         .collect::<Vec<_>>();
-    let enc_fn =
-        |data: &Vec<SmallVectorData>| formats::Bitcode::encode_small_vector(black_box(data));
-    let dec_fn = |bytes: &[u8]| formats::Bitcode::decode_small_vector(bytes);
-    bench_it(c, data, enc_fn, dec_fn, "bitcode_small_vector");
+
+    let mut group = c.benchmark_group("bitcode_vector");
+    group.bench_function("small", |b| {
+        b.iter(|| {
+            let encoded = formats::Bitcode::encode_small_vector(black_box(&data));
+            let decoded = formats::Bitcode::decode_small_vector(black_box(&encoded));
+            black_box(decoded);
+        })
+    });
+    group.finish();
 }
 
 fn postcard_vector(c: &mut Criterion) {
     let data = iter::repeat_with(BigVectorData::new)
         .take(10)
         .collect::<Vec<_>>();
-    let enc_fn = |data: &Vec<BigVectorData>| formats::Postcard::encode_big_vector(black_box(data));
-    let dec_fn = |bytes: &[u8]| formats::Postcard::decode_big_vector(bytes);
-    bench_it(c, data, enc_fn, dec_fn, "postcard_big_vector");
+
+    let mut group = c.benchmark_group("postcard_vector");
+    group.bench_function("big", |b| {
+        b.iter(|| {
+            let encoded = formats::Postcard::encode_big_vector(black_box(&data));
+            let decoded = formats::Postcard::decode_big_vector(black_box(&encoded));
+            black_box(decoded);
+        })
+    });
+    group.finish();
 
     let data = iter::repeat_with(SmallVectorData::new)
         .take(10)
         .collect::<Vec<_>>();
-    let enc_fn =
-        |data: &Vec<SmallVectorData>| formats::Postcard::encode_small_vector(black_box(data));
-    let dec_fn = |bytes: &[u8]| formats::Postcard::decode_small_vector(bytes);
-    bench_it(c, data, enc_fn, dec_fn, "postcard_small_vector");
-}
 
-fn bench_it<D, EncFn, DecFn>(
-    c: &mut Criterion,
-    data: D,
-    enc_fn: EncFn,
-    dec_fn: DecFn,
-    bench_name: &str,
-) where
-    D: Serialize + DeserializeOwned,
-    EncFn: Fn(&D) -> Vec<u8>,
-    DecFn: Fn(&[u8]) -> D,
-{
-    let mut group = c.benchmark_group("encoding_decoding");
-    group.measurement_time(std::time::Duration::from_secs(20));
-    group.bench_function(bench_name, |b| {
+    let mut group = c.benchmark_group("postcard_vector");
+    group.bench_function("small", |b| {
         b.iter(|| {
-            let encoded = enc_fn(black_box(&data));
-            let data: D = dec_fn(&encoded);
-            black_box(data);
+            let encoded = formats::Postcard::encode_small_vector(black_box(&data));
+            let decoded = formats::Postcard::decode_small_vector(black_box(&encoded));
+            black_box(decoded);
         })
     });
+    group.finish();
 }
